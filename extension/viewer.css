@@ -457,3 +457,22 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+
+.mention-list {
+  border: 1px solid var(--line, #ced8d1);
+  border-radius: 8px;
+  padding: 4px;
+  max-height: 230px;
+  overflow: auto;
+}
+.mention-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  margin: 0;
+}
+.mention-list button[aria-selected="true"] {
+  background: #e3eee8;
+  color: #153f30;
+}

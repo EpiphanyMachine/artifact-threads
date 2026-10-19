@@ -87,7 +87,9 @@ test(
           return respond({ login: "alice", name: "Alice Reviewer" });
         if (!req.url.startsWith("/repos/your-org/artifacts/"))
           return respond({}, 404);
-        if (req.url.includes("/commits/gh%2Fproposal"))
+        if (req.url.includes("/assignees?"))
+          return respond([{ login: "bob" }, { login: "alice" }]);
+        if (req.url.includes("/commits/heads%2Fgh%2Fproposal"))
           return respond({ sha: changed ? "e".repeat(40) : "a".repeat(40) });
         if (req.url.includes("/commits/")) return respond({}, 404);
         if (req.url.includes("/contents/docs/report.html"))
@@ -266,7 +268,7 @@ test(
       await page
         .locator("#source-url")
         .fill(
-          "https://raw.githubusercontent.com/your-org/artifacts/gh/proposal/docs/report.html?token=do-not-store",
+          "https://raw.githubusercontent.com/your-org/artifacts/refs/heads/gh/proposal/docs/report.html?token=do-not-store",
         );
       await page
         .getByRole("button", { name: "Open artifact", exact: true })
@@ -314,9 +316,13 @@ test(
         .getByRole("heading", { name: "New conversation", exact: true })
         .waitFor();
       await page.locator("#thread-title").fill("Clarify the requirement");
+      await page.locator("#thread-body").fill("@b");
+      await page.getByRole("option", { name: "@bob", exact: true }).waitFor();
+      await page.locator("#thread-body").press("Enter");
+      assert.equal(await page.locator("#thread-body").inputValue(), "@bob ");
       await page
         .locator("#thread-body")
-        .fill("@bob please clarify this example.");
+        .pressSequentially("please clarify this example.");
       await page
         .getByRole("button", { name: "Post thread", exact: true })
         .click();
@@ -329,9 +335,19 @@ test(
       await frame
         .getByRole("button", { name: "Open annotation thread 1", exact: true })
         .waitFor();
+      await page.locator("#reply-body").fill("<img src=x onerror=alert(1)> @b");
+      await page.getByRole("option", { name: "@bob", exact: true }).click();
+      assert.equal(
+        await page.locator("#reply-body").inputValue(),
+        "<img src=x onerror=alert(1)> @bob ",
+      );
       await page
         .locator("#reply-body")
-        .fill("<img src=x onerror=alert(1)> @bob A plain-text reply.");
+        .pressSequentially("A plain-text reply.");
+      assert.equal(
+        requests.filter((r) => r.path.includes("/assignees?")).length,
+        1,
+      );
       await page
         .getByRole("button", { name: "Post reply", exact: true })
         .click();

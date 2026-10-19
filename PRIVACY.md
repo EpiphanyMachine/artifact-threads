@@ -14,6 +14,7 @@ Artifact bodies, unposted comments, and selection drafts are held only in the op
 
 - Device authorization and token refresh requests, and your authorized API requests.
 - File, commit, issue, and comment reads needed for the artifact you open.
+- Repository issue-assignee reads when you type an @mention. Suggestions are filtered locally and cached only in the open workspace; partial usernames are not sent as search queries.
 - When you explicitly post: the title, comment, selected quote or node description, target/anchor metadata, and immutable source identity. The selected context becomes part of the GitHub issue and is visible to people who can access it.
 - When you explicitly reply or resolve/reopen: that comment or state change.
 

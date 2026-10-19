@@ -182,6 +182,8 @@ async function handle(message) {
   const api = new GitHub(await auth());
   if (message.type === "artifact.open")
     return api.artifact(message.url, (await config()).repositories);
+  if (message.type === "mentions.list")
+    return api.mentionUsers(await allowedSource(message.source));
   if (message.type === "threads.list")
     return api.threads(await allowedSource(message.source));
   if (message.type === "thread.create") {

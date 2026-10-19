@@ -157,3 +157,46 @@ test("resolves immutable source versions and supports the raw Contents response 
     /Allow/,
   );
 });
+
+test("parses namespaced Raw branch and tag links without retaining tokens", () => {
+  for (const namespace of ["heads", "tags"]) {
+    const parsed = parseArtifact(
+      `https://raw.githubusercontent.com/your-org/artifacts/refs/${namespace}/release/v1/docs/review.html?token=discard-me`,
+    );
+    assert.ok(
+      parsed.candidates.some(
+        (c) =>
+          c.ref === `${namespace}/release/v1` && c.path === "docs/review.html",
+      ),
+    );
+    assert.equal(JSON.stringify(parsed).includes("discard-me"), false);
+    assert.equal(
+      parsed.candidates.some((c) => c.ref.startsWith("refs/")),
+      false,
+    );
+  }
+});
+test("mention suggestions paginate repository assignees and return only safe logins", async () => {
+  const paths = [];
+  const api = new GitHub("fixture", async (url, options) => {
+    paths.push(url);
+    assert.equal(options.method, "GET");
+    return {
+      ok: true,
+      status: 200,
+      json: async () =>
+        paths.length === 1
+          ? Array.from({ length: 100 }, (_, i) => ({ login: `person-${i}` }))
+          : [{ login: "bob" }, { login: "person-1" }, { login: "<script>" }],
+    };
+  });
+  const result = await api.mentionUsers(source);
+  assert.equal(result.users.length, 101);
+  assert.ok(result.users.includes("bob"));
+  assert.equal(result.truncated, false);
+  assert.ok(
+    paths[1].endsWith(
+      "/repos/your-org/artifacts/assignees?per_page=100&page=2",
+    ),
+  );
+});

@@ -13,7 +13,7 @@ Built with Codex. Independently developed by Greg Hilkert; MIT licensed.
 - Open a GitHub `blob` or `raw.githubusercontent.com` HTML link, including private files you are authorized to read.
 - Review an immutable commit version in an isolated frame. Inline scripts and embedded assets work; external resources and network calls inside the artifact are blocked.
 - Turn on Comment mode, select text or click a node/image, and post a thread from the trusted sidebar.
-- Read authors, timestamps, and replies; use `@username` or `@organization/team` in your comments. GitHub handles notifications according to its access and notification settings. Mention autocomplete is not implemented.
+- Read authors, timestamps, and replies; use `@username` or `@organization/team` in your comments. GitHub handles notifications according to its access and notification settings. Type `@` in a new comment or reply to suggest repository issue assignees; use arrow keys and Enter/Tab, or click a username. Suggestions use existing Issues access, cover up to 1,000 assignees, and are not a complete directory of everyone you can mention. Team mentions can be typed manually.
 - Resolve/reopen threads by closing/reopening their GitHub issues. Each issue has independent participants and subscriptions.
 - Show pins when targets can be matched. Missing or ambiguous targets remain in the sidebar, with a link to the original reviewed version. Earlier-version matches are labelled.
 
@@ -28,6 +28,8 @@ No database, application server, analytics, or third-party preview service. The 
 5. Add allowed repositories such as `your-org/artifacts`, one per line, and save.
 6. While viewing a GitHub HTML file or Raw URL, click the extension → **Review this artifact**. You can also paste a file URL in the workspace.
 7. Turn on **Comment mode**, select a passage or click an image/node, and post. Turn it off to use the artifact's own controls.
+
+Raw links using `refs/heads/<branch>` or `refs/tags/<tag>` are supported, including URLs with temporary `?token=…` parameters. Click **Review this artifact** in the toolbar popup to comment in the extension workspace. Raw query tokens are stripped; you still connect GitHub and allow the repository.
 
 This build uses the registered [Artifact Threads GitHub App](https://github.com/apps/artifact-threads). Colleagues do not need to register an app or enter a client ID. Advanced settings support a different app for independent deployments; no hosted service is necessary.
 

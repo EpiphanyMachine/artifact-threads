@@ -1,3 +1,4 @@
+import { attachMentions } from "./mentions.js";
 import { SCHEMA, sourceURL, targetCheck } from "./core.js";
 const $ = (id) => document.getElementById(id);
 const frame = $("artifact");
@@ -264,6 +265,7 @@ $("settings-form").onsubmit = async (event) => {
         repositories: $("repositories").value.split("\n"),
       },
     });
+    mentionCache.clear();
     await loadSettings();
     notice("Settings saved. Only configured repositories can be reviewed.");
   } catch (error) {
@@ -321,6 +323,7 @@ $("connect").onclick = async () => {
 };
 $("disconnect").onclick = async () => {
   clearTimeout(poll);
+  mentionCache.clear();
   await rpc("auth.disconnect");
   await loadSettings();
   notice("Disconnected. Local GitHub credentials were removed.");
@@ -507,6 +510,24 @@ addEventListener("beforeunload", (event) => {
     event.returnValue = "";
   }
 });
+const mentionCache = new Map();
+for (const id of ["thread-body", "reply-body"])
+  attachMentions(
+    $(id),
+    () => artifact?.source.repository,
+    async () => {
+      if (!artifact) return { users: [] };
+      const repo = artifact.source.repository;
+      if (!mentionCache.has(repo)) {
+        const pending = rpc("mentions.list", { source: artifact.source });
+        mentionCache.set(repo, pending);
+        pending.catch(() => {
+          if (mentionCache.get(repo) === pending) mentionCache.delete(repo);
+        });
+      }
+      return mentionCache.get(repo);
+    },
+  );
 const initial = new URL(location.href).searchParams.get("source");
 if (initial) $("source-url").value = initial;
 loadSettings()

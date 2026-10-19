@@ -38,6 +38,13 @@ export function parseArtifact(input) {
     throw new Error("This version supports GitHub and GitHub raw file links.");
   const repo = repository(parts.slice(0, 2).join("/"));
   const tail = parts.slice(2);
+  // Raw links may explicitly name the refs namespace; the commit API takes
+  // heads/<branch> or tags/<tag>, preserving branch/tag name collisions.
+  const namespaced =
+    url.hostname === "raw.githubusercontent.com" &&
+    tail[0] === "refs" &&
+    ["heads", "tags"].includes(tail[1]);
+  if (namespaced) tail.shift();
   if (
     tail.length < 2 ||
     tail.length > 24 ||
@@ -46,7 +53,7 @@ export function parseArtifact(input) {
   )
     throw new Error("Choose a standalone .html or .htm file.");
   const candidates = [];
-  for (let n = 1; n < tail.length; n++)
+  for (let n = namespaced ? 2 : 1; n < tail.length; n++)
     candidates.push({
       ref: tail.slice(0, n).join("/"),
       path: tail.slice(n).join("/"),

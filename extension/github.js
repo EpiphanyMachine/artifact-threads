@@ -112,6 +112,25 @@ export class GitHub {
       "The HTML file or branch was not found. Check its GitHub link and repository access.",
     );
   }
+  async mentionUsers(source) {
+    const s = sourceCheck(source);
+    const users = new Set();
+    let truncated = false;
+    for (let page = 1; page <= 10; page++) {
+      const items = await this.request(
+        `/repos/${s.repository}/assignees?per_page=100&page=${page}`,
+      );
+      for (const user of items)
+        if (
+          typeof user.login === "string" &&
+          /^[a-z\d-]{1,39}$/i.test(user.login)
+        )
+          users.add(user.login);
+      if (items.length < 100) break;
+      if (page === 10) truncated = true;
+    }
+    return { users: [...users].sort((a, b) => a.localeCompare(b)), truncated };
+  }
   async threads(source) {
     const s = sourceCheck(source);
     const found = [];
