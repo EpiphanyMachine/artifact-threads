@@ -8,6 +8,7 @@ let artifact = null,
   selected = null,
   draft = null,
   commentMode = false,
+  commentsVisible = true,
   locations = new Map(),
   booted = false,
   poll = null,
@@ -43,11 +44,32 @@ function toggleSettings(show) {
   $("settings").hidden = !show;
   $("settings-toggle").setAttribute("aria-expanded", String(show));
 }
+function setCommentMode(enabled) {
+  commentMode = enabled;
+  if (enabled) setCommentsVisible(true);
+  $("comment-mode").setAttribute("aria-pressed", String(enabled));
+  $("comment-mode").title = enabled ? "Stop adding comments" : "Add comment";
+  frameMessage("mode", { enabled });
+}
+function setCommentsVisible(visible) {
+  commentsVisible = visible;
+  $("hide-comments").setAttribute("aria-pressed", String(!visible));
+  if (!visible) {
+    setCommentMode(false);
+    showDrawer(false);
+    clearTimeout(noticeTimer);
+    $("notice").textContent = "";
+  }
+  frameMessage("visibility", { visible });
+  sendPins();
+}
+$("hide-comments").onclick = () => setCommentsVisible(false);
 function showDrawer(show) {
+  if (show && !commentsVisible) setCommentsVisible(true);
   $("comments-drawer").hidden = !show;
   $("threads-toggle").setAttribute("aria-expanded", String(show));
 }
-$("threads-toggle").onclick = () => showDrawer($("comments-drawer").hidden);
+$("threads-toggle").onclick = () => showDrawer(true);
 $("drawer-close").onclick = () => {
   showDrawer(false);
   $("threads-toggle").focus();
@@ -88,10 +110,11 @@ addEventListener("message", (event) => {
   if (data?.schema !== "artifact-threads/frame" || data.channel !== channel)
     return;
   if (data.type === "ready") {
+    frameMessage("visibility", { visible: commentsVisible });
     frameMessage("mode", { enabled: commentMode });
     sendPins();
     notice(
-      "Artifact loaded at an exact commit. Turn on Comment mode to select text or a node.",
+      "Artifact loaded at an exact commit. Use Add comment to select text or a node.",
     );
   }
   if (data.type === "target" && commentMode) {
@@ -141,7 +164,8 @@ function sendPins() {
   if (!artifact) return;
   frameMessage("threads", {
     threads: threads.map((t) => ({
-      visible: $("show-closed").checked || t.state === "open",
+      visible:
+        commentsVisible && ($("show-closed").checked || t.state === "open"),
       number: t.number,
       target: t.annotation.target,
       state: t.state,
@@ -173,8 +197,12 @@ function renderTargetContext() {
 }
 function renderThreads() {
   renderTargetContext();
-  $("threads-toggle").textContent =
-    `Comments · ${threads.filter((t) => t.state === "open").length} open`;
+  const count = threads.filter((t) => t.state === "open").length;
+  $("thread-count").textContent = String(count);
+  $("threads-toggle").setAttribute(
+    "aria-label",
+    `Show comments (${count} open)`,
+  );
   const list = $("threads");
   list.replaceChildren();
   const visible = threads.filter(
@@ -447,12 +475,7 @@ $("open-form").onsubmit = (event) => {
   openArtifact();
 };
 $("comment-mode").onclick = () => {
-  commentMode = !commentMode;
-  $("comment-mode").setAttribute("aria-pressed", String(commentMode));
-  $("comment-mode").textContent = commentMode
-    ? "Comment mode: on"
-    : "Comment mode";
-  frameMessage("mode", { enabled: commentMode });
+  setCommentMode(!commentMode);
   notice(
     commentMode
       ? "Select a passage, or click a node/image. Interactive controls are paused while selecting."

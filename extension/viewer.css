@@ -649,3 +649,78 @@ body[data-loaded="true"] .notice:empty {
   color: var(--warn);
   font-weight: 600;
 }
+
+.review-tools {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.review-tools button {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+}
+.review-tools svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#thread-count {
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  padding: 0 4px;
+  min-width: 15px;
+  border-radius: 8px;
+  font-size: 9px;
+  line-height: 15px;
+  background: var(--ink);
+  color: var(--panel);
+}
+body[data-loaded="true"] .topbar {
+  top: 18px;
+  right: 10px;
+  left: auto;
+  padding: 5px;
+}
+body[data-loaded="true"] .review-tools {
+  flex-direction: column;
+  margin: 0;
+}
+body[data-loaded="true"] #settings-toggle {
+  display: none;
+}
+body[data-loaded="true"].settings-open #settings-toggle {
+  display: block;
+}
+body[data-loaded="true"].settings-open .topbar {
+  flex-direction: column;
+}
+.sidebar {
+  top: 12px;
+  right: 68px;
+  width: min(390px, calc(100vw - 80px));
+}
+@media (max-width: 600px) {
+  body[data-loaded="true"] .topbar {
+    top: 12px;
+    right: 6px;
+    left: auto;
+  }
+  .sidebar {
+    top: 8px;
+    right: 62px;
+    bottom: 8px;
+    width: calc(100vw - 70px);
+  }
+  .comment > div {
+    flex-wrap: wrap;
+  }
+}

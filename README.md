@@ -12,7 +12,7 @@ Built with Codex. Independently developed by Greg Hilkert; MIT licensed.
 
 - Open a GitHub `blob` or `raw.githubusercontent.com` HTML link, including private files you are authorized to read.
 - Review an immutable commit version in an isolated frame. Inline scripts and embedded assets work; external resources and network calls inside the artifact are blocked.
-- Turn on Comment mode, select text or click a node/image, and post a thread from the trusted sidebar.
+- Click **Add comment**, select text or click a node/image, and post a thread from the trusted sidebar.
 - Read authors, timestamps, and replies; use `@username` or `@organization/team` in your comments. GitHub handles notifications according to its access and notification settings. Type `@` in a new comment or reply to suggest repository issue assignees; use arrow keys and Enter/Tab, or click a username. Suggestions use existing Issues access, cover up to 1,000 assignees, and are not a complete directory of everyone you can mention. Team mentions can be typed manually.
 - Resolve/reopen threads by closing/reopening their GitHub issues. Each issue has independent participants and subscriptions.
 - Show pins when targets can be matched. Missing or ambiguous targets remain in the sidebar, with a link to the original reviewed version. Earlier-version matches are labelled.
@@ -27,7 +27,7 @@ No database, application server, analytics, or third-party preview service. The 
 4. Each reviewer clicks **Connect GitHub**, enters the displayed code on GitHub, and approves the connection using their own account. The app must also be installed on the relevant repositories. Organization installation does not replace personal authorization.
 5. Add allowed repositories such as `your-org/artifacts`, one per line, and save.
 6. Click **Raw** on a GitHub HTML file in an allowed repository. Artifact Threads automatically opens the review in the same tab, loads the artifact and comments, and shows a floating toolbar. No extension-button click is needed. You can still open a file manually from the extension popup.
-7. Turn on **Comment mode**, select a passage or click an image/node, and post. Turn it off to use the artifact's own controls.
+7. Click **Add comment**, select a passage or click an image/node, and post. Click it again to restore the artifact’s controls, or use **Hide all comments** for a clean reading view.
 
 Raw links using `refs/heads/<branch>` or `refs/tags/<tag>` are supported, including URLs with temporary `?token=…` parameters. Automatic activation applies only to top-level Raw HTML links in the local allowlist. Other repositories, file types, and embedded frames are left alone. Raw query tokens are stripped; you still connect GitHub and allow the repository.
 
@@ -37,7 +37,7 @@ After code changes, reload the extension and reopen the Raw link. This update ad
 
 ## Review on the artifact
 
-The artifact fills the viewport. A floating toolbar has the open-thread count, Comment mode, and Settings. Open threads show text highlights or element borders and numbered pins. Hover a pin for the thread title and status; click it to open its discussion. The comments drawer opens automatically when an artifact has open threads, and can be closed without hiding its markers.
+The artifact fills the viewport. A compact vertical toolbar on the right has **Add comment**, **Show comments** with the open-thread count, and **Hide all comments**. Settings are available from the extension popup. Open threads show text highlights or element borders and numbered pins. Hover a pin for the thread title and status; click it to open its discussion. The comments drawer opens automatically when an artifact has open threads, and can be closed without hiding its markers. **Hide all comments** hides the drawer, pins, highlights, and selection overlays and exits comment mode; **Show comments** restores the discussions without enabling new-comment selection. **Add comment** restores markers and enables selection. Unposted drafts are retained when hiding comments.
 
 The drawer includes resolved threads when **Include resolved** is checked. Resolved markers are subdued, and **Reviewed version** opens the original commit in the same review interface in a new tab. Thread status is independent from target matching: missing or ambiguous targets stay in the drawer with their saved quote/node description and original version link. Escape exits Comment mode, then closes the drawer.
 

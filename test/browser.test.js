@@ -398,7 +398,7 @@ test(
         token: false,
       });
       await page
-        .getByRole("button", { name: "Comment mode", exact: true })
+        .getByRole("button", { name: "Add comment", exact: true })
         .click();
       await frame.locator("#r1").evaluate((element) => {
         const range = document.createRange();
@@ -443,6 +443,52 @@ test(
         .click();
       await page.locator("#comments-drawer").waitFor();
       await page.locator("#target-context").waitFor({ state: "hidden" });
+      // Hide all overlays and stop annotation without losing the discussion.
+      await page
+        .getByRole("button", { name: "Hide all comments", exact: true })
+        .click();
+      assert.equal(await page.locator("#comments-drawer").isVisible(), false);
+      assert.equal(
+        await page.locator("#comment-mode").getAttribute("aria-pressed"),
+        "false",
+      );
+      await frame
+        .locator("#artifact-threads-overlay")
+        .waitFor({ state: "hidden" });
+      await frame
+        .getByRole("button", { name: "Count: 1", exact: true })
+        .click();
+      await frame
+        .getByRole("button", { name: "Count: 2", exact: true })
+        .waitFor();
+      await page
+        .getByRole("button", { name: "Show comments (1 open)", exact: true })
+        .click();
+      await page.locator("#comments-drawer").waitFor();
+      await frame
+        .getByRole("button", { name: "Open annotation thread 1", exact: true })
+        .waitFor();
+      assert.equal(
+        await page.locator("#comment-mode").getAttribute("aria-pressed"),
+        "false",
+      );
+      await page
+        .getByRole("button", { name: "Hide all comments", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Add comment", exact: true })
+        .click();
+      await frame
+        .getByRole("button", { name: "Open annotation thread 1", exact: true })
+        .waitFor();
+      assert.equal(
+        await page.locator("#comment-mode").getAttribute("aria-pressed"),
+        "true",
+      );
+      await frame
+        .getByRole("button", { name: "Open annotation thread 1", exact: true })
+        .click();
+      await page.locator("#comments-drawer").waitFor();
       assert.equal(await page.locator("#comments > .comment > a").count(), 0);
       assert.equal(
         await page
@@ -637,7 +683,13 @@ test(
         JSON.stringify(storage).includes("raw.githubusercontent.com"),
         false,
       );
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      assert.equal(
+        await page
+          .getByRole("button", { name: "Settings", exact: true })
+          .count(),
+        0,
+      );
+      await page.goto(`chrome-extension://${id}/viewer.html#settings`);
       await page
         .getByRole("button", { name: "Disconnect", exact: true })
         .click();

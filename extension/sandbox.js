@@ -22,7 +22,7 @@ function annotate(channel) {
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent =
-    ":host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none}button{position:fixed;pointer-events:auto;width:27px;height:27px;border:2px solid white;border-radius:50%;background:#17634e;color:white;font:600 11px system-ui;box-shadow:0 1px 5px #0005;cursor:pointer}.box{position:fixed;box-sizing:border-box;border:2px solid #237e66;background:#237e6612;pointer-events:none}.hover{border-style:dashed}.annotation{background:#e8b93130;border:0;border-bottom:2px solid #ac7a13}.annotation.element{background:transparent;border:2px solid #ac7a13}.annotation.resolved{background:#65757018;border-color:#657570;border-style:dashed}.annotation.active{background:#e8b93150;outline:2px solid #ac7a13}button.resolved{background:#657570}button.active{outline:3px solid #e8b931}";
+    ":host([hidden]){display:none!important}:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none}button{position:fixed;pointer-events:auto;width:27px;height:27px;border:2px solid white;border-radius:50%;background:#17634e;color:white;font:600 11px system-ui;box-shadow:0 1px 5px #0005;cursor:pointer}.box{position:fixed;box-sizing:border-box;border:2px solid #237e66;background:#237e6612;pointer-events:none}.hover{border-style:dashed}.annotation{background:#e8b93130;border:0;border-bottom:2px solid #ac7a13}.annotation.element{background:transparent;border:2px solid #ac7a13}.annotation.resolved{background:#65757018;border-color:#657570;border-style:dashed}.annotation.active{background:#e8b93150;outline:2px solid #ac7a13}button.resolved{background:#657570}button.active{outline:3px solid #e8b931}";
   shadow.append(style);
   document.documentElement.append(host);
   let mode = false,
@@ -370,6 +370,7 @@ function annotate(channel) {
       data.schema !== "artifact-threads/host"
     )
       return;
+    if (data.type === "visibility") host.hidden = !data.visible;
     if (data.type === "mode") {
       mode = Boolean(data.enabled);
       hover.hidden = true;
