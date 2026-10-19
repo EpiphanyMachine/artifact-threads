@@ -15,7 +15,7 @@ const listen = (server) =>
     server.listen(0, "127.0.0.1", () => resolve(server.address().port)),
   );
 const close = (server) => new Promise((resolve) => server.close(resolve));
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>A portable report</title><style>body{font:18px/1.7 system-ui;padding:30px;max-width:700px}img{display:block;margin-top:30px}</style></head><body><h1>Portable report</h1><p id="r1">A requirement with stable surrounding context.</p><img id="chart" width="160" height="90" alt="Embedded comparison chart" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='90'%3E%3Crect x='10' y='50' width='30' height='30' fill='%2317634e'/%3E%3Crect x='60' y='20' width='30' height='60' fill='%2317634e'/%3E%3C/svg%3E"><button id="counter">Count: 0</button><p>Repeating text</p><p>Repeating text</p><script>let count=0;document.querySelector('#counter').onclick=()=>document.querySelector('#counter').textContent='Count: '+(++count);</script></body></html>`;
+const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>A portable report</title><style>body{font:18px/1.7 system-ui;padding:30px;max-width:700px}img{display:block;margin-top:30px}</style></head><body class="artifact-body"><h1 style="color: rgb(20, 80, 60)">Portable report</h1><p id="r1">A requirement with stable surrounding context.</p><img id="chart" width="160" height="90" alt="Embedded comparison chart" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='90'%3E%3Crect x='10' y='50' width='30' height='30' fill='%2317634e'/%3E%3Crect x='60' y='20' width='30' height='60' fill='%2317634e'/%3E%3C/svg%3E"><button id="counter">Count: 0</button><p>Repeating text</p><p>Repeating text</p><script>let count=0;document.querySelector('#counter').onclick=()=>document.querySelector('#counter').textContent='Count: '+(++count);</script></body></html>`;
 test(
   "unpacked extension: OAuth fixture, isolated interactive artifact, node/text threads, replies, attribution, resolve and stale targets",
   { timeout: 120000 },
@@ -285,7 +285,20 @@ test(
       const id = new URL(worker.url()).host;
       const page = await context.newPage();
       page.setDefaultTimeout(10000);
-      const errors = [];
+      const errors = [],
+        policyErrors = [];
+      const collectPolicyErrors = (target) =>
+        target.on("console", (message) => {
+          if (
+            message.type() === "error" &&
+            /Content Security Policy|violates.*directive|Refused to.*(?:style|script)/i.test(
+              message.text(),
+            )
+          )
+            policyErrors.push(message.text());
+        });
+      collectPolicyErrors(page);
+      context.on("page", collectPolicyErrors);
       page.on("pageerror", (e) => errors.push(e.message));
       // Upgrade an early installation whose saved settings have no client ID.
       await worker.evaluate(() =>
@@ -341,6 +354,15 @@ test(
       assert.equal(page.url().includes("do-not-store"), false);
       const frame = page.frameLocator("#artifact");
       await frame.getByRole("heading", { name: "Portable report" }).waitFor();
+      assert.equal(
+        await frame.locator("h1").evaluate((el) => getComputedStyle(el).color),
+        "rgb(20, 80, 60)",
+      );
+      assert.equal(
+        await frame.locator("body").getAttribute("class"),
+        "artifact-body",
+      );
+      assert.deepEqual(policyErrors, []);
       assert.equal(await page.locator("#comments-drawer").isVisible(), false);
       assert.equal(
         await page
@@ -611,6 +633,7 @@ test(
         undefined,
       );
       assert.deepEqual(errors, []);
+      assert.deepEqual(policyErrors, []);
       console.log(
         "Verified real unpacked Chromium extension with synthetic GitHub/OAuth only.",
       );

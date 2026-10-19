@@ -65,24 +65,13 @@ async function loadSettings() {
     toggleSettings(true);
   return state;
 }
-function cleanHTML(html) {
-  const parsed = new DOMParser().parseFromString(html, "text/html");
-  parsed.querySelectorAll("base,meta[http-equiv]").forEach((el) => {
-    if (
-      el.tagName === "BASE" ||
-      /^(content-security-policy|refresh)$/i.test(el.getAttribute("http-equiv"))
-    )
-      el.remove();
-  });
-  return "<!doctype html>\n" + parsed.documentElement.outerHTML;
-}
 function renderArtifact() {
   if (!artifact || !booted) return;
   frame.contentWindow.postMessage(
     {
       schema: "artifact-threads/bootstrap",
       channel,
-      html: cleanHTML(artifact.html),
+      html: artifact.html,
     },
     "*",
   );

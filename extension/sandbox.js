@@ -1,3 +1,16 @@
+// Parse artifact markup only in the sandbox. DOMParser inherits its caller's
+// CSP, including when parsing into a detached document.
+function cleanHTML(html) {
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  parsed.querySelectorAll("base,meta[http-equiv]").forEach((el) => {
+    if (
+      el.tagName === "BASE" ||
+      /^(content-security-policy|refresh)$/i.test(el.getAttribute("http-equiv"))
+    )
+      el.remove();
+  });
+  return "<!doctype html>\n" + parsed.documentElement.outerHTML;
+}
 function annotate(channel) {
   const send = (type, data = {}) =>
     parent.postMessage(
@@ -425,9 +438,10 @@ addEventListener("message", (event) => {
     return;
   const script =
     "(" + annotate.toString() + ")(" + JSON.stringify(data.channel) + ");";
+  const html = cleanHTML(data.html);
   document.open();
   document.write(
-    data.html +
+    html +
       "<script>" +
       script.replace(/<\/script/gi, "<\\/script") +
       "<\/script>",
