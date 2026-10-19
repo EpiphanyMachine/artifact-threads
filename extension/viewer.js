@@ -119,7 +119,7 @@ addEventListener("message", (event) => {
         .filter(
           (x) =>
             Number.isSafeInteger(x.number) &&
-            ["attached", "missing", "ambiguous"].includes(x.state),
+            ["attached", "hidden", "missing", "ambiguous"].includes(x.state),
         )
         .map((x) => [x.number, x.state]),
     );
@@ -140,17 +140,39 @@ function targetText(target) {
 function sendPins() {
   if (!artifact) return;
   frameMessage("threads", {
-    threads: threads
-      .filter((t) => $("show-closed").checked || t.state === "open")
-      .map((t) => ({
-        number: t.number,
-        target: t.annotation.target,
-        state: t.state,
-        title: t.title.replace(/^\[Artifact Threads\] /, ""),
-      })),
+    threads: threads.map((t) => ({
+      visible: $("show-closed").checked || t.state === "open",
+      number: t.number,
+      target: t.annotation.target,
+      state: t.state,
+      title: t.title.replace(/^\[Artifact Threads\] /, ""),
+    })),
   });
 }
+function renderTargetContext() {
+  let state = selected ? locations.get(selected.number) : null;
+  if (
+    state === "attached" &&
+    selected.state === "closed" &&
+    !$("show-closed").checked
+  )
+    state = "filtered";
+  $("target-context").hidden = !selected || state === "attached";
+  $("target-context").dataset.state = state || "pending";
+  $("target-status").textContent =
+    {
+      missing:
+        "Detached comment — the original target changed or is no longer on this page. Saved target:",
+      ambiguous:
+        "Detached comment — multiple targets match, so no highlight is shown. Saved target:",
+      hidden: "Target is hidden in the page’s current view. Saved target:",
+      filtered:
+        "Resolved highlight is hidden. Enable Include resolved to show it. Saved target:",
+    }[state] || "Locating this comment on the page…";
+  $("jump").disabled = !["attached", "hidden"].includes(state);
+}
 function renderThreads() {
+  renderTargetContext();
   $("threads-toggle").textContent =
     `Comments · ${threads.filter((t) => t.state === "open").length} open`;
   const list = $("threads");
@@ -183,7 +205,9 @@ function renderThreads() {
       warning.textContent =
         state === "ambiguous"
           ? "Ambiguous target — inspect original"
-          : "Target changed or missing — inspect original";
+          : state === "hidden"
+            ? "Target hidden in the current page view"
+            : "Target changed or missing — inspect original";
       button.append(warning);
     } else if (
       artifact &&
@@ -223,18 +247,23 @@ function commentElement(author, body, date, url) {
   const time = document.createElement("time");
   time.dateTime = date || "";
   time.textContent = date ? new Date(date).toLocaleString() : "";
-  meta.append(user, time);
+  const links = document.createElement("span");
+  links.className = "comment-links";
+  links.append(time);
+  meta.append(user, links);
   const text = document.createElement("p");
   text.textContent = body;
   article.append(meta, text);
   if (url) {
     const link = document.createElement("a");
-    link.textContent = "Open comment on GitHub ↗";
+    link.textContent = "↗";
+    link.setAttribute("aria-label", "Open comment on GitHub");
+    link.title = "Open comment on GitHub";
     link.href = url;
     link.target = "_blank";
     link.rel = "noreferrer";
-    link.className = "small";
-    article.append(link);
+    link.className = "comment-link";
+    links.append(link);
   }
   return article;
 }

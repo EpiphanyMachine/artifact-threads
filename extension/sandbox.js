@@ -217,8 +217,13 @@ function annotate(channel) {
     const locations = [];
     for (const thread of threads) {
       const location = locate(thread.target);
-      locations.push({ number: thread.number, state: location.state });
-      if (location.state !== "attached") continue;
+      const state =
+        location.state === "attached" &&
+        !location.rects().some((rect) => rect.width > 0 && rect.height > 0)
+          ? "hidden"
+          : location.state;
+      locations.push({ number: thread.number, state });
+      if (location.state !== "attached" || thread.visible === false) continue;
       const pin = document.createElement("button");
       pin.type = "button";
       pin.textContent = String(thread.number);

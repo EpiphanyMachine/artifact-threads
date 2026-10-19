@@ -605,3 +605,47 @@ body[data-loaded="true"] .notice:empty {
     right: 8px;
   }
 }
+
+.comment-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.comment .comment-link {
+  font-size: 17px;
+  line-height: 1;
+  text-decoration: none;
+  padding: 3px;
+}
+.comment > div > a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.target-context {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+}
+#target-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+.target-context .selection {
+  padding: 0;
+  background: transparent;
+}
+.target-context[data-state="missing"],
+.target-context[data-state="ambiguous"] {
+  border-color: var(--warn);
+  border-left-width: 3px;
+}
+.target-context[data-state="missing"] #target-status,
+.target-context[data-state="ambiguous"] #target-status {
+  color: var(--warn);
+  font-weight: 600;
+}

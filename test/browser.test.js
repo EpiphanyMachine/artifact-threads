@@ -442,6 +442,28 @@ test(
         .getByRole("button", { name: "Open annotation thread 1", exact: true })
         .click();
       await page.locator("#comments-drawer").waitFor();
+      await page.locator("#target-context").waitFor({ state: "hidden" });
+      assert.equal(await page.locator("#comments > .comment > a").count(), 0);
+      assert.equal(
+        await page
+          .locator("#comments .comment-links")
+          .getByRole("link", { name: "Open comment on GitHub", exact: true })
+          .count(),
+        1,
+      );
+      await frame.locator("#r1").evaluate((el) => {
+        el.hidden = true;
+      });
+      await page
+        .getByText(
+          "Target is hidden in the page’s current view. Saved target:",
+          { exact: true },
+        )
+        .waitFor();
+      await frame.locator("#r1").evaluate((el) => {
+        el.hidden = false;
+      });
+      await page.locator("#target-context").waitFor({ state: "hidden" });
       await page.locator("#reply-body").fill("<img src=x onerror=alert(1)> @b");
       await page.getByRole("option", { name: "@bob", exact: true }).click();
       assert.equal(
@@ -574,6 +596,17 @@ test(
         await page.locator("#conversation-target").textContent(),
         "A requirement with stable surrounding context.",
       );
+      await page
+        .getByText(
+          "Detached comment — the original target changed or is no longer on this page. Saved target:",
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(
+        await page.locator("#target-context").getAttribute("data-state"),
+        "missing",
+      );
+      assert.equal(await page.locator("#jump").isDisabled(), true);
       const [originalPage] = await Promise.all([
         context.waitForEvent("page"),
         page
