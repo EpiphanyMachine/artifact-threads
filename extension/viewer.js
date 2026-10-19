@@ -1,7 +1,7 @@
 import { attachMentions } from "./mentions.js";
 import { SCHEMA, sourceURL, targetCheck } from "./core.js";
 const $ = (id) => document.getElementById(id);
-const frame = $("artifact");
+let frame = $("artifact");
 const channel = crypto.randomUUID();
 let artifact = null,
   threads = [],
@@ -13,6 +13,7 @@ let artifact = null,
   poll = null,
   authenticating = false,
   opening = false;
+let noticeTimer;
 async function rpc(type, data = {}) {
   const response = await chrome.runtime.sendMessage({ type, ...data });
   if (!response?.ok)
@@ -23,7 +24,12 @@ async function rpc(type, data = {}) {
   return response.value;
 }
 function notice(text, error = false) {
+  clearTimeout(noticeTimer);
   $("notice").textContent = text;
+  if (!error && document.body.dataset.loaded === "true")
+    noticeTimer = setTimeout(() => {
+      $("notice").textContent = "";
+    }, 4500);
   $("notice").dataset.error = String(error);
 }
 function frameMessage(type, data = {}) {
@@ -33,9 +39,19 @@ function frameMessage(type, data = {}) {
   );
 }
 function toggleSettings(show) {
+  document.body.classList.toggle("settings-open", show);
   $("settings").hidden = !show;
   $("settings-toggle").setAttribute("aria-expanded", String(show));
 }
+function showDrawer(show) {
+  $("comments-drawer").hidden = !show;
+  $("threads-toggle").setAttribute("aria-expanded", String(show));
+}
+$("threads-toggle").onclick = () => showDrawer($("comments-drawer").hidden);
+$("drawer-close").onclick = () => {
+  showDrawer(false);
+  $("threads-toggle").focus();
+};
 async function loadSettings() {
   const state = await rpc("settings.get");
   $("client-id").value = state.settings.clientId;
@@ -93,6 +109,7 @@ addEventListener("message", (event) => {
     try {
       draft = { id: crypto.randomUUID(), target: targetCheck(data.target) };
       $("selected-target").textContent = targetText(draft.target);
+      showDrawer(true);
       $("composer").hidden = false;
       $("conversation").hidden = true;
       $("thread-title").focus();
@@ -119,6 +136,10 @@ addEventListener("message", (event) => {
     );
     renderThreads();
   }
+  if (data.type === "escape") {
+    if (commentMode) $("comment-mode").click();
+    else showDrawer(false);
+  }
   if (data.type === "selection.error")
     notice(String(data.message || "").slice(0, 300), true);
 });
@@ -132,10 +153,17 @@ function sendPins() {
   frameMessage("threads", {
     threads: threads
       .filter((t) => $("show-closed").checked || t.state === "open")
-      .map((t) => ({ number: t.number, target: t.annotation.target })),
+      .map((t) => ({
+        number: t.number,
+        target: t.annotation.target,
+        state: t.state,
+        title: t.title.replace(/^\[Artifact Threads\] /, ""),
+      })),
   });
 }
 function renderThreads() {
+  $("threads-toggle").textContent =
+    `Comments · ${threads.filter((t) => t.state === "open").length} open`;
   const list = $("threads");
   list.replaceChildren();
   const visible = threads.filter(
@@ -222,6 +250,8 @@ function commentElement(author, body, date, url) {
   return article;
 }
 async function openThread(thread) {
+  showDrawer(true);
+  frameMessage("active", { number: thread.number });
   selected = thread;
   draft = null;
   $("composer").hidden = true;
@@ -233,7 +263,12 @@ async function openThread(thread) {
   $("conversation-meta").textContent =
     `#${thread.number} · ${thread.state === "closed" ? "Resolved" : "Open"} · reviewed ${thread.annotation.source.commit.slice(0, 7)}`;
   $("conversation-target").textContent = targetText(thread.annotation.target);
-  $("original").href = sourceURL(thread.annotation.source, thread.number);
+  const original = new URL(chrome.runtime.getURL("viewer.html"));
+  original.searchParams.set(
+    "source",
+    sourceURL(thread.annotation.source, thread.number),
+  );
+  $("original").href = original.href;
   $("github").href = thread.url;
   $("resolve").textContent =
     thread.state === "closed" ? "Reopen thread" : "Resolve thread";
@@ -366,9 +401,18 @@ async function openArtifact() {
       "viewer.html?source=" + encodeURIComponent(clean),
     );
     toggleSettings(false);
-    frame.src = "sandbox.html?load=" + crypto.randomUUID();
+    document.body.dataset.loaded = "true";
+    document.title =
+      artifact.source.path.split("/").at(-1) + " · Artifact Threads";
+    // Use a fresh isolated document for each reviewed version.
+    const nextFrame = frame.cloneNode(false);
+    nextFrame.hidden = false;
+    nextFrame.src = "sandbox.html?load=" + crypto.randomUUID();
     booted = false;
+    frame.replaceWith(nextFrame);
+    frame = nextFrame;
     await refresh();
+    showDrawer(threads.some((t) => t.state === "open"));
     if (artifact.thread) {
       const requested = threads.find((t) => t.number === artifact.thread);
       if (requested) await openThread(requested);
@@ -454,6 +498,7 @@ $("post").onclick = async () => {
   }
 };
 $("conversation-close").onclick = () => {
+  frameMessage("active", { number: null });
   selected = null;
   $("conversation").hidden = true;
   renderThreads();
@@ -528,6 +573,12 @@ for (const id of ["thread-body", "reply-body"])
       return mentionCache.get(repo);
     },
   );
+addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (commentMode) $("comment-mode").click();
+  else if (!$("settings").hidden) toggleSettings(false);
+  else showDrawer(false);
+});
 const initial = new URL(location.href).searchParams.get("source");
 if (initial) $("source-url").value = initial;
 loadSettings()

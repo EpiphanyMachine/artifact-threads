@@ -8,6 +8,7 @@ import {
   issueBody,
   parseAnnotation,
   fence,
+  rawReviewURL,
 } from "../extension/core.js";
 import { GitHub } from "../extension/github.js";
 const source = {
@@ -197,6 +198,44 @@ test("mention suggestions paginate repository assignees and return only safe log
   assert.ok(
     paths[1].endsWith(
       "/repos/your-org/artifacts/assignees?per_page=100&page=2",
+    ),
+  );
+});
+
+test("automatic review only handles allowlisted Raw HTML and strips secrets", () => {
+  const viewer = "chrome-extension://test/viewer.html";
+  const allowed = ["your-org/artifacts"];
+  const result = rawReviewURL(
+    "https://raw.githubusercontent.com/your-org/artifacts/refs/heads/main/report.html?token=discard-me#artifact-thread=2",
+    allowed,
+    viewer,
+  );
+  assert.equal(result.includes("discard-me"), false);
+  assert.equal(
+    new URL(result).searchParams.get("source"),
+    "https://raw.githubusercontent.com/your-org/artifacts/refs/heads/main/report.html#artifact-thread=2",
+  );
+  assert.equal(
+    rawReviewURL(
+      "https://raw.githubusercontent.com/other/repo/main/report.html",
+      allowed,
+      viewer,
+    ),
+    null,
+  );
+  assert.equal(
+    rawReviewURL(
+      "https://github.com/your-org/artifacts/blob/main/report.html",
+      allowed,
+      viewer,
+    ),
+    null,
+  );
+  assert.throws(() =>
+    rawReviewURL(
+      "https://raw.githubusercontent.com/your-org/artifacts/main/data.json",
+      allowed,
+      viewer,
     ),
   );
 });

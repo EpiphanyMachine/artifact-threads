@@ -9,12 +9,13 @@ function annotate(channel) {
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent =
-    ":host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none}button{position:fixed;pointer-events:auto;width:27px;height:27px;border:2px solid white;border-radius:50%;background:#17634e;color:white;font:600 11px system-ui;box-shadow:0 1px 5px #0005;cursor:pointer}.box{position:fixed;box-sizing:border-box;border:2px solid #237e66;background:#237e6612;pointer-events:none}.hover{border-style:dashed}";
+    ":host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none}button{position:fixed;pointer-events:auto;width:27px;height:27px;border:2px solid white;border-radius:50%;background:#17634e;color:white;font:600 11px system-ui;box-shadow:0 1px 5px #0005;cursor:pointer}.box{position:fixed;box-sizing:border-box;border:2px solid #237e66;background:#237e6612;pointer-events:none}.hover{border-style:dashed}.annotation{background:#e8b93130;border:0;border-bottom:2px solid #ac7a13}.annotation.element{background:transparent;border:2px solid #ac7a13}.annotation.resolved{background:#65757018;border-color:#657570;border-style:dashed}.annotation.active{background:#e8b93150;outline:2px solid #ac7a13}button.resolved{background:#657570}button.active{outline:3px solid #e8b931}";
   shadow.append(style);
   document.documentElement.append(host);
   let mode = false,
     threads = [],
-    records = [];
+    records = [],
+    activeNumber = null;
   const hover = document.createElement("div");
   hover.className = "box hover";
   hover.hidden = true;
@@ -105,6 +106,7 @@ function annotate(channel) {
       return {
         state: "attached",
         element,
+        rects: () => [element.getBoundingClientRect()],
         rect: () => {
           const rect = element.getBoundingClientRect();
           if (!rect.width && !rect.height) return rect;
@@ -155,6 +157,7 @@ function annotate(channel) {
       return {
         state: "attached",
         element: first.node.parentElement,
+        rects: () => [...range.getClientRects()],
         rect: () => range.getBoundingClientRect(),
       };
     }
@@ -167,10 +170,36 @@ function annotate(channel) {
         Math.max(0, Math.min(innerWidth - 29, rect.right - 12)) + "px";
       record.pin.style.top = Math.max(-30, rect.top - 10) + "px";
       record.pin.hidden = rect.width === 0 && rect.height === 0;
+      const rects = record.location.rects();
+      while (record.boxes.length > rects.length) record.boxes.pop().remove();
+      rects.forEach((area, index) => {
+        let box = record.boxes[index];
+        if (!box) {
+          box = document.createElement("div");
+          box.className =
+            "box annotation" +
+            (record.element ? " element" : "") +
+            (record.closed ? " resolved" : "");
+          shadow.prepend(box);
+          record.boxes.push(box);
+        }
+        box.classList.toggle("active", activeNumber === record.number);
+        box.hidden = !area.width || !area.height;
+        Object.assign(box.style, {
+          left: area.left + "px",
+          top: area.top + "px",
+          width: area.width + "px",
+          height: area.height + "px",
+        });
+      });
+      record.pin.classList.toggle("active", activeNumber === record.number);
     }
   }
   function refresh() {
-    for (const record of records) record.pin.remove();
+    for (const record of records) {
+      record.pin.remove();
+      for (const box of record.boxes) box.remove();
+    }
     records = [];
     const locations = [];
     for (const thread of threads) {
@@ -180,7 +209,13 @@ function annotate(channel) {
       const pin = document.createElement("button");
       pin.type = "button";
       pin.textContent = String(thread.number);
-      pin.title = "Open thread #" + thread.number;
+      pin.title =
+        (thread.state === "closed" ? "Resolved" : "Open") +
+        " · #" +
+        thread.number +
+        " · " +
+        String(thread.title || "");
+      pin.classList.toggle("resolved", thread.state === "closed");
       pin.setAttribute("aria-label", "Open annotation thread " + thread.number);
       pin.onclick = (event) => {
         event.preventDefault();
@@ -188,7 +223,14 @@ function annotate(channel) {
         send("thread.select", { number: thread.number });
       };
       shadow.append(pin);
-      records.push({ pin, location, number: thread.number });
+      records.push({
+        pin,
+        location,
+        number: thread.number,
+        boxes: [],
+        element: thread.target.kind === "element",
+        closed: thread.state === "closed",
+      });
     }
     position();
     send("locations", { locations });
@@ -319,6 +361,10 @@ function annotate(channel) {
       threads = data.threads;
       refresh();
     }
+    if (data.type === "active") {
+      activeNumber = data.number;
+      position();
+    }
     if (data.type === "jump") {
       const record = records.find((item) => item.number === data.number);
       if (record) {
@@ -350,6 +396,9 @@ function annotate(channel) {
       position();
     });
   }
+  addEventListener("keydown", (event) => {
+    if (event.key === "Escape") send("escape");
+  });
   addEventListener("scroll", schedule, true);
   addEventListener("resize", schedule);
   const observer = new MutationObserver(() => {
@@ -385,4 +434,11 @@ addEventListener("message", (event) => {
   );
   document.close();
 });
-parent.postMessage({ schema: "artifact-threads/boot" }, "*");
+// Finish loading the shell before document.write replaces its document.
+addEventListener(
+  "load",
+  () => {
+    parent.postMessage({ schema: "artifact-threads/boot" }, "*");
+  },
+  { once: true },
+);

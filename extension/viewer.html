@@ -12,7 +12,18 @@
       <a class="brand" href="viewer.html"
         ><span class="mark" aria-hidden="true">⌗</span>Artifact Threads</a
       ><span class="tagline">Conversations belong next to the work.</span
-      ><button id="settings-toggle" type="button" aria-expanded="false">
+      ><button
+        id="threads-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="comments-drawer"
+      >
+        Comments · 0 open
+      </button>
+      <button id="comment-mode" type="button" aria-pressed="false" disabled>
+        Comment mode
+      </button>
+      <button id="settings-toggle" type="button" aria-expanded="false">
         Settings
       </button>
     </header>
@@ -94,20 +105,10 @@
       /><button type="submit" id="open">Open artifact</button>
     </form>
     <div class="notice" id="notice" role="status">
-      Open a GitHub HTML file or use the toolbar button while viewing a Raw URL.
+      Raw HTML links in your allowed repositories open here automatically.
     </div>
     <main class="workspace">
       <section class="preview" aria-label="Artifact preview">
-        <div class="preview-bar">
-          <p id="file-name">No artifact loaded</p>
-          <button id="comment-mode" type="button" aria-pressed="false" disabled>
-            Comment mode
-          </button>
-        </div>
-        <p class="version" id="version">
-          Inline scripts and embedded assets run in an isolated frame. External
-          resources and network calls are blocked.
-        </p>
         <div class="empty" id="empty">
           <span class="empty-symbol" aria-hidden="true">⌗</span>
           <h2>Read it. Point at it. Discuss it.</h2>
@@ -126,11 +127,28 @@
           hidden
         ></iframe>
       </section>
-      <aside class="sidebar" aria-labelledby="threads-title">
+      <aside
+        class="sidebar"
+        id="comments-drawer"
+        aria-labelledby="threads-title"
+        hidden
+      >
         <div class="sidebar-top">
           <h2 id="threads-title">Threads</h2>
-          <button id="refresh" type="button" disabled>Refresh</button>
+          <div class="actions">
+            <button id="refresh" type="button" disabled>Refresh</button>
+            <button id="drawer-close" type="button" aria-label="Close comments">
+              ×
+            </button>
+          </div>
         </div>
+        <details class="source-details">
+          <summary>Artifact version</summary>
+          <p id="file-name">No artifact loaded</p>
+          <p class="version" id="version">
+            Open an artifact to review its exact version.
+          </p>
+        </details>
         <label class="filter"
           ><input type="checkbox" id="show-closed" /> Include resolved</label
         >

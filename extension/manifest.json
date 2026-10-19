@@ -4,8 +4,12 @@
   "version": "0.1.0",
   "description": "Conversations pinned to HTML. Review portable artifacts with GitHub issues, authorship, and @mentions. No backend.",
   "minimum_chrome_version": "120",
-  "permissions": ["storage", "activeTab"],
-  "host_permissions": ["https://api.github.com/*", "https://github.com/*"],
+  "permissions": ["storage", "activeTab", "webNavigation"],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://github.com/*",
+    "https://raw.githubusercontent.com/*"
+  ],
   "action": {
     "default_title": "Review this HTML artifact",
     "default_popup": "popup.html"

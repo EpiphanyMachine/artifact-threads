@@ -174,3 +174,14 @@ export function readableComment(body) {
     .replace(/<!-- artifact-threads:[\s\S]*?-->/g, "")
     .trim();
 }
+
+// Shared by automatic navigation and tests; never carry Raw query credentials.
+export function rawReviewURL(input, allowed, viewerURL) {
+  const url = new URL(input);
+  if (url.hostname !== "raw.githubusercontent.com") return null;
+  const parsed = parseArtifact(input);
+  if (!allowed.includes(parsed.repository)) return null;
+  url.search = "";
+  if (!parsed.thread) url.hash = "";
+  return viewerURL + "?source=" + encodeURIComponent(url.href);
+}

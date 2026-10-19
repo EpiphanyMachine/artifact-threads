@@ -2,6 +2,10 @@
 
 Artifact Threads has no backend, database, analytics, advertising, or telemetry. Its only remote service is GitHub.
 
+## Automatic activation
+
+The extension listens for top-level navigation to `raw.githubusercontent.com`. For an HTML file in your configured repository allowlist, it automatically navigates that same tab to its local review page. Temporary Raw query tokens are removed from the destination; they are not stored or used for API authentication. Other repositories, non-HTML files, and subframes are left alone. No content script is injected into GitHub or Raw pages.
+
 ## What stays local
 
 The browser extension fetches the selected HTML from GitHub's Contents API, pins it to an exact commit, and renders it locally in a sandbox. The full artifact is not uploaded to a preview service or copied into issues. Repository settings and the GitHub connection remain in the browser profile.
@@ -28,6 +32,8 @@ There is no automatic posting, agent execution, screenshot upload, external link
 - **activeTab:** read the current file URL when you click the toolbar action. The extension does not scan your tabs in the background.
 - **api.github.com:** read selected files, commits, issues, and comments; submit explicitly requested issue/comment/state changes.
 - **github.com:** GitHub device authorization and token refresh.
+- **webNavigation:** observe Raw-host navigation so enabled HTML links open automatically, without a toolbar click. Navigation events are filtered to that host; there is no stored browsing-history log.
+- **raw.githubusercontent.com:** inspect the navigating tab's URL to confirm it still matches the Raw link before changing that tab to the local reviewer. Artifact content is still fetched through GitHub's API.
 
 There are no content scripts, cookie-reading permission, arbitrary-host permission, externally callable message handlers, or runtime dependencies.
 

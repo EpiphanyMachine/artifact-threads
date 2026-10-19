@@ -3,6 +3,7 @@ import {
   sourceCheck,
   annotationCheck,
   parseAnnotation,
+  rawReviewURL,
 } from "./core.js";
 import { GitHub } from "./github.js";
 import { GITHUB_APP_CLIENT_ID } from "./app-config.js";
@@ -222,3 +223,38 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     .catch((error) => reply({ ok: false, error: error.message }));
   return true;
 });
+
+// Take over top-level Raw HTML navigation only for explicitly allowed repos.
+// No content script or cross-extension messaging is required. The Raw renderer
+// can keep its header rules; our destination is outside those rules' host.
+const navigating = new Set();
+async function autoReview(details) {
+  if (
+    details.frameId !== 0 ||
+    details.tabId < 0 ||
+    navigating.has(details.tabId)
+  )
+    return;
+  navigating.add(details.tabId);
+  try {
+    const destination = rawReviewURL(
+      details.url,
+      (await config()).repositories,
+      chrome.runtime.getURL("viewer.html"),
+    );
+    if (!destination) return;
+    const tab = await chrome.tabs.get(details.tabId);
+    // Do not take over a newer navigation after asynchronous settings reads.
+    if ((tab.pendingUrl || tab.url) !== details.url) return;
+    await chrome.tabs.update(details.tabId, { url: destination });
+  } catch {
+    // A closed tab, unsupported file, or interrupted navigation needs no action.
+  } finally {
+    navigating.delete(details.tabId);
+  }
+}
+const rawNavigation = {
+  url: [{ schemes: ["https"], hostEquals: "raw.githubusercontent.com" }],
+};
+chrome.webNavigation.onBeforeNavigate.addListener(autoReview, rawNavigation);
+chrome.webNavigation.onCommitted.addListener(autoReview, rawNavigation);

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -64,6 +64,18 @@ test(
           res.writeHead(status, { "Content-Type": "application/json" });
           res.end(JSON.stringify(value));
         };
+        if (req.headers.host === "raw.githubusercontent.com") {
+          res.writeHead(200, { "Content-Type": "text/plain" });
+          res.end(html);
+          return;
+        }
+        if (req.url === "/fixture-raw-link") {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(
+            '<a href="https://raw.githubusercontent.com/your-org/artifacts/refs/heads/gh/proposal/docs/report.html?token=do-not-store">Raw</a>',
+          );
+          return;
+        }
         if (req.url === "/login/device/code")
           return respond({
             device_code: "fixture-device",
@@ -91,15 +103,19 @@ test(
           return respond([{ login: "bob" }, { login: "alice" }]);
         if (req.url.includes("/commits/heads%2Fgh%2Fproposal"))
           return respond({ sha: changed ? "e".repeat(40) : "a".repeat(40) });
+        if (req.url.endsWith("/commits/" + "a".repeat(40)))
+          return respond({ sha: "a".repeat(40) });
         if (req.url.includes("/commits/")) return respond({}, 404);
-        if (req.url.includes("/contents/docs/report.html"))
+        if (req.url.includes("/contents/docs/report.html")) {
+          const contentChanged =
+            changed && !req.url.includes("ref=" + "a".repeat(40));
           return respond({
             type: "file",
             size: html.length,
-            sha: changed ? "f".repeat(40) : "b".repeat(40),
+            sha: contentChanged ? "f".repeat(40) : "b".repeat(40),
             encoding: "base64",
             content: Buffer.from(
-              changed
+              contentChanged
                 ? html.replace(
                     "A requirement with stable surrounding context.",
                     "The requirement was deliberately replaced.",
@@ -107,6 +123,7 @@ test(
                 : html,
             ).toString("base64"),
           });
+        }
         if (denyWrites && req.method === "POST")
           return respond({ message: "Forbidden" }, 403);
         if (req.url.includes("/issues?")) return respond(issues);
@@ -179,7 +196,13 @@ test(
       }),
     );
     proxy.on("connect", (req, client, head) => {
-      if (!["api.github.com:443", "github.com:443"].includes(req.url)) {
+      if (
+        ![
+          "api.github.com:443",
+          "github.com:443",
+          "raw.githubusercontent.com:443",
+        ].includes(req.url)
+      ) {
         client.end("HTTP/1.1 403 Forbidden\r\n\r\n");
         return;
       }
@@ -202,13 +225,54 @@ test(
     let context;
     try {
       const extension = join(root, "extension");
+      // A separate header-only renderer models HTML Artifact Viewer coexistence.
+      const renderer = join(temp, "raw-renderer");
+      await mkdir(renderer);
+      await writeFile(
+        join(renderer, "manifest.json"),
+        JSON.stringify({
+          manifest_version: 3,
+          name: "Fixture Raw renderer",
+          version: "1.0",
+          permissions: ["declarativeNetRequestWithHostAccess"],
+          host_permissions: ["https://raw.githubusercontent.com/*"],
+          declarative_net_request: {
+            rule_resources: [
+              { id: "renderer", enabled: true, path: "rules.json" },
+            ],
+          },
+        }),
+      );
+      await writeFile(
+        join(renderer, "rules.json"),
+        JSON.stringify([
+          {
+            id: 1,
+            priority: 1,
+            action: {
+              type: "modifyHeaders",
+              responseHeaders: [
+                {
+                  header: "content-type",
+                  operation: "set",
+                  value: "text/html; charset=utf-8",
+                },
+              ],
+            },
+            condition: {
+              urlFilter: "||raw.githubusercontent.com/",
+              resourceTypes: ["main_frame"],
+            },
+          },
+        ]),
+      );
       context = await chromium.launchPersistentContext(join(temp, "profile"), {
         channel: "chromium",
         headless: true,
         viewport: { width: 1440, height: 1000 },
         args: [
-          `--disable-extensions-except=${extension}`,
-          `--load-extension=${extension}`,
+          `--disable-extensions-except=${extension},${renderer}`,
+          `--load-extension=${extension},${renderer}`,
           `--proxy-server=http://127.0.0.1:${proxyPort}`,
           "--ignore-certificate-errors",
           "--disable-background-networking",
@@ -265,16 +329,25 @@ test(
               ),
           );
         });
-      await page
-        .locator("#source-url")
-        .fill(
-          "https://raw.githubusercontent.com/your-org/artifacts/refs/heads/gh/proposal/docs/report.html?token=do-not-store",
-        );
-      await page
-        .getByRole("button", { name: "Open artifact", exact: true })
-        .click();
+      const tabCount = context.pages().length;
+      await page.goto("https://github.com/fixture-raw-link");
+      await page.getByRole("link", { name: "Raw", exact: true }).click();
+      await page.waitForURL(
+        (url) =>
+          url.protocol === "chrome-extension:" &&
+          url.pathname === "/viewer.html",
+      );
+      assert.equal(context.pages().length, tabCount);
+      assert.equal(page.url().includes("do-not-store"), false);
       const frame = page.frameLocator("#artifact");
       await frame.getByRole("heading", { name: "Portable report" }).waitFor();
+      assert.equal(await page.locator("#comments-drawer").isVisible(), false);
+      assert.equal(
+        await page
+          .locator("#artifact")
+          .evaluate((el) => el.getBoundingClientRect().width),
+        1440,
+      );
       await frame.getByRole("button", { name: "Count: 0" }).click();
       await frame.getByRole("button", { name: "Count: 1" }).waitFor();
       assert.equal(
@@ -335,6 +408,18 @@ test(
       await frame
         .getByRole("button", { name: "Open annotation thread 1", exact: true })
         .waitFor();
+      assert.ok(
+        (await frame.locator("#artifact-threads-overlay .annotation").count()) >
+          0,
+      );
+      await page
+        .getByRole("button", { name: "Close comments", exact: true })
+        .click();
+      assert.equal(await page.locator("#comments-drawer").isVisible(), false);
+      await frame
+        .getByRole("button", { name: "Open annotation thread 1", exact: true })
+        .click();
+      await page.locator("#comments-drawer").waitFor();
       await page.locator("#reply-body").fill("<img src=x onerror=alert(1)> @b");
       await page.getByRole("option", { name: "@bob", exact: true }).click();
       assert.equal(
@@ -379,6 +464,22 @@ test(
         .getByRole("button", { name: "Reopen thread", exact: true })
         .waitFor();
       assert.equal(issues[0].state, "closed");
+      await page.locator("#show-closed").check();
+      await frame
+        .locator("#artifact-threads-overlay button.resolved")
+        .waitFor();
+      assert.ok(
+        (await frame
+          .locator("#artifact-threads-overlay .annotation.resolved")
+          .count()) > 0,
+      );
+      await page.locator("#show-closed").uncheck();
+      assert.equal(
+        await frame
+          .locator("#artifact-threads-overlay button.resolved")
+          .count(),
+        0,
+      );
       await page
         .getByRole("button", { name: "Reopen thread", exact: true })
         .click();
@@ -430,9 +531,9 @@ test(
         writes,
       );
       changed = true;
-      await page
-        .getByRole("button", { name: "Open artifact", exact: true })
-        .click();
+      await page.goto("https://github.com/fixture-raw-link");
+      await page.getByRole("link", { name: "Raw", exact: true }).click();
+      await page.waitForURL((url) => url.protocol === "chrome-extension:");
       await frame
         .getByText("The requirement was deliberately replaced.", {
           exact: true,
@@ -443,6 +544,30 @@ test(
           exact: true,
         })
         .waitFor();
+      await page
+        .locator("#threads .thread")
+        .filter({ hasText: "Clarify the requirement" })
+        .click();
+      assert.equal(
+        await page.locator("#conversation-target").textContent(),
+        "A requirement with stable surrounding context.",
+      );
+      const [originalPage] = await Promise.all([
+        context.waitForEvent("page"),
+        page
+          .getByRole("link", { name: "Reviewed version ↗", exact: true })
+          .click(),
+      ]);
+      await originalPage
+        .frameLocator("#artifact")
+        .getByText("A requirement with stable surrounding context.", {
+          exact: true,
+        })
+        .waitFor();
+      await originalPage
+        .getByRole("heading", { name: "Clarify the requirement", exact: true })
+        .waitFor();
+      await originalPage.close();
       await page.screenshot({ path: join(temp, "workspace.png") });
       await page.setViewportSize({ width: 390, height: 844 });
       assert.ok(
@@ -462,6 +587,25 @@ test(
         .getByRole("button", { name: "Disconnect", exact: true })
         .click();
       await page.getByText("Not connected", { exact: true }).waitFor();
+      // Allowed Raw links still activate when signed out, exposing setup.
+      await page.goto("https://github.com/fixture-raw-link");
+      await page.getByRole("link", { name: "Raw", exact: true }).click();
+      await page.waitForURL((url) => url.protocol === "chrome-extension:");
+      await page
+        .getByRole("button", { name: "Connect GitHub", exact: true })
+        .waitFor();
+      // Repositories outside the allowlist keep rendering on their Raw URL.
+      await page.goto(
+        "https://raw.githubusercontent.com/other/repo/main/report.html",
+      );
+      await page.getByRole("heading", { name: "Portable report" }).waitFor();
+      assert.ok(
+        page.url().startsWith("https://raw.githubusercontent.com/other/repo/"),
+      );
+      await page.goto(
+        "https://raw.githubusercontent.com/your-org/artifacts/main/data.json",
+      );
+      assert.ok(page.url().endsWith("data.json"));
       assert.equal(
         (await worker.evaluate(() => chrome.storage.local.get("auth"))).auth,
         undefined,

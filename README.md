@@ -26,14 +26,22 @@ No database, application server, analytics, or third-party preview service. The 
 3. [Install Artifact Threads](https://github.com/apps/artifact-threads/installations/new) on the repositories you want to review. An organization owner may need to approve installation. The public client ID is already configured. See [GitHub App setup](docs/github-app-setup.md) for details. The app needs **Issues: read/write**, **Contents: read-only**, and automatic **Metadata: read-only** on selected repositories; it needs no code-write access, notifications permission, client secret, or private key.
 4. Each reviewer clicks **Connect GitHub**, enters the displayed code on GitHub, and approves the connection using their own account. The app must also be installed on the relevant repositories. Organization installation does not replace personal authorization.
 5. Add allowed repositories such as `your-org/artifacts`, one per line, and save.
-6. While viewing a GitHub HTML file or Raw URL, click the extension → **Review this artifact**. You can also paste a file URL in the workspace.
+6. Click **Raw** on a GitHub HTML file in an allowed repository. Artifact Threads automatically opens the review in the same tab, loads the artifact and comments, and shows a floating toolbar. No extension-button click is needed. You can still open a file manually from the extension popup.
 7. Turn on **Comment mode**, select a passage or click an image/node, and post. Turn it off to use the artifact's own controls.
 
-Raw links using `refs/heads/<branch>` or `refs/tags/<tag>` are supported, including URLs with temporary `?token=…` parameters. Click **Review this artifact** in the toolbar popup to comment in the extension workspace. Raw query tokens are stripped; you still connect GitHub and allow the repository.
+Raw links using `refs/heads/<branch>` or `refs/tags/<tag>` are supported, including URLs with temporary `?token=…` parameters. Automatic activation applies only to top-level Raw HTML links in the local allowlist. Other repositories, file types, and embedded frames are left alone. Raw query tokens are stripped; you still connect GitHub and allow the repository.
 
 This build uses the registered [Artifact Threads GitHub App](https://github.com/apps/artifact-threads). Colleagues do not need to register an app or enter a client ID. Advanced settings support a different app for independent deployments; no hosted service is necessary.
 
-After code changes, reload the extension and reopen its workspace. Keep the installation folder in place.
+After code changes, reload the extension and reopen the Raw link. This update adds Raw-host access and the webNavigation permission; your browser may ask you to approve those permissions. Keep the installation folder in place.
+
+## Review on the artifact
+
+The artifact fills the viewport. A floating toolbar has the open-thread count, Comment mode, and Settings. Open threads show text highlights or element borders and numbered pins. Hover a pin for the thread title and status; click it to open its discussion. The comments drawer opens automatically when an artifact has open threads, and can be closed without hiding its markers.
+
+The drawer includes resolved threads when **Include resolved** is checked. Resolved markers are subdued, and **Reviewed version** opens the original commit in the same review interface in a new tab. Thread status is independent from target matching: missing or ambiguous targets stay in the drawer with their saved quote/node description and original version link. Escape exits Comment mode, then closes the drawer.
+
+HTML Artifact Viewer can stay installed: its Raw response-header rules do not target the extension review URL, so no cross-extension messaging or redirect handshake is needed. Artifact Threads also works without it. The review fetches its own immutable copy through the GitHub API; it does not preserve interactive state from a previously rendered Raw page.
 
 ## How feedback survives the file
 
@@ -66,7 +74,7 @@ npm run test:browser
 npm run package
 ```
 
-The browser test loads the actual unpacked extension in an isolated Chromium profile. A local HTTPS fixture stands in for GitHub's API and device authorization endpoints. It covers selection, image pins, posts/replies, resolve/reopen, stale targets, metadata, and the sandbox boundary without contacting GitHub or posting real issues.
+The browser test loads the actual unpacked extension in an isolated Chromium profile. A local HTTPS fixture stands in for GitHub's API and device authorization endpoints. It covers automatic Raw-link activation with a separate fixture renderer installed, same-tab navigation, signed-out setup, allowlist exclusions, selection highlights, image pins, posts/replies, resolve/reopen, stale targets, metadata, and the sandbox boundary without contacting GitHub or posting real issues.
 
 **Live GitHub App installation and authorization have not been tested by the fixture suite.** That remains the next live-use check.
 
