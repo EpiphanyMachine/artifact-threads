@@ -31,19 +31,27 @@
           credentials.
         </p>
         <p class="small">
-          First setup: register a GitHub App with device flow enabled, install
-          it on selected repositories, and enter its public client ID here. No
-          client secret or backend is needed. Each colleague then connects their
-          own GitHub account.
+          First,
+          <a
+            href="https://github.com/apps/artifact-threads/installations/new"
+            target="_blank"
+            rel="noreferrer"
+            >install Artifact Threads on selected repositories ↗</a
+          >. An organization owner may need to approve installation. Then add
+          your allowed repositories below and connect your own GitHub account.
         </p>
       </div>
       <form id="settings-form">
+        <details>
+          <summary>Advanced: use a different GitHub App</summary>
+          <label
+            >Public GitHub App client ID<input
+              id="client-id"
+              placeholder="Iv1.…"
+              autocomplete="off"
+          /></label>
+        </details>
         <label
-          >Public GitHub App client ID<input
-            id="client-id"
-            placeholder="Iv1.…"
-            autocomplete="off" /></label
-        ><label
           >Allowed repositories<textarea
             id="repositories"
             rows="3"

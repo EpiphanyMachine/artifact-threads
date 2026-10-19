@@ -2,7 +2,15 @@
 
 Artifact Threads uses GitHub App user access tokens obtained with device flow. Each reviewer authorizes their own account, so their GitHub identity is attached to the issues and replies they submit.
 
-## Register once, as the app owner
+## Use the configured app
+
+This build ships with the public client ID for [Artifact Threads](https://github.com/apps/artifact-threads): `Iv23lifyC4DeQ32gff3f` (App ID `5385923`). Reviewers do not need to register an app or enter either ID.
+
+[Install Artifact Threads](https://github.com/apps/artifact-threads/installations/new) on selected repositories, then connect each reviewer below. An organization installation grants repository access to the app; each reviewer still authorizes their own GitHub account.
+
+## Register your own app (optional)
+
+For an independent deployment, register a separate app and replace `GITHUB_APP_CLIENT_ID` in `extension/app-config.js` before packaging, or use the workspace's advanced setting.
 
 1. Go to **GitHub → Settings → Developer settings → GitHub Apps → New GitHub App**. Register under your personal account or organization. Choose an available name, such as `Artifact Threads — your-name`.
 2. Use this repository as the homepage. This extension has no OAuth callback server: leave the callback URL empty where GitHub allows it, and leave **Request user authorization (OAuth) during installation** off. The extension starts device authorization itself.
@@ -18,19 +26,19 @@ Artifact Threads uses GitHub App user access tokens obtained with device flow. E
 
 ## Install on selected repositories
 
-From the app's **Install App** page, choose the owning account or organization and **Only select repositories**. Select only the repositories containing artifacts to review. An organization owner may need to approve the installation.
+From [Install Artifact Threads](https://github.com/apps/artifact-threads/installations/new) (or your own app’s **Install App** page), choose the owning account or organization and **Only select repositories**. Select only the repositories containing artifacts to review. An organization owner may need to approve the installation.
 
 The extension's local allowlist further limits which repositories it will load. App access plus user access still govern every GitHub operation.
 
 ## Connect each reviewer
 
 1. Open the extension workspace → Settings.
-2. Enter the app's public client ID, add allowed `owner/repository` names, and save.
+2. Add allowed `owner/repository` names and save. The app client ID is already configured.
 3. Click **Connect GitHub**. The workspace shows a short code and opens GitHub's verification page.
 4. Enter that code and authorize the app in GitHub. Keep the workspace open until it confirms the connected username.
 5. Open an artifact and submit a test thread deliberately. Confirm that GitHub attributes it to the reviewer, and that a second authorized user can read and reply.
 
-For a packaged distribution, set `GITHUB_APP_CLIENT_ID` in `extension/app-config.js` before building the ZIP. Colleagues then receive the public client ID preconfigured and do not type it. The first development build leaves it editable to support your own registration without distributing a secret.
+The public client ID is configuration, not a credential. No client secret or private key is distributed.
 
 ## Troubleshooting
 

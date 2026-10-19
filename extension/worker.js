@@ -12,7 +12,12 @@ const trusted = () =>
 chrome.runtime.onInstalled.addListener(trusted);
 chrome.runtime.onStartup.addListener(trusted);
 async function config() {
-  return (await chrome.storage.local.get("settings")).settings || defaults;
+  const stored = (await chrome.storage.local.get("settings")).settings;
+  return {
+    ...defaults,
+    ...stored,
+    clientId: stored?.clientId || GITHUB_APP_CLIENT_ID,
+  };
 }
 async function oauth(path, body) {
   const response = await fetch("https://github.com" + path, {

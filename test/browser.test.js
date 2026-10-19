@@ -221,7 +221,24 @@ test(
       page.setDefaultTimeout(10000);
       const errors = [];
       page.on("pageerror", (e) => errors.push(e.message));
+      // Upgrade an early installation whose saved settings have no client ID.
+      await worker.evaluate(() =>
+        chrome.storage.local.set({
+          settings: { clientId: "", repositories: ["your-org/artifacts"] },
+        }),
+      );
       await page.goto(`chrome-extension://${id}/viewer.html`);
+      assert.equal(
+        await page.locator("#client-id").inputValue(),
+        "Iv23lifyC4DeQ32gff3f",
+      );
+      assert.equal(
+        await page.locator("#repositories").inputValue(),
+        "your-org/artifacts",
+      );
+      await page
+        .getByText("Advanced: use a different GitHub App", { exact: true })
+        .click();
       await page.locator("#client-id").fill("Iv1.fixture");
       await page.locator("#repositories").fill("your-org/artifacts");
       await page
@@ -379,18 +396,16 @@ test(
       const writes = requests.filter(
         (r) => r.method === "POST" && r.path.includes("/issues"),
       ).length;
-      await frame
-        .locator("body")
-        .evaluate(() =>
-          parent.postMessage(
-            {
-              type: "thread.create",
-              source: { repository: "evil/repo" },
-              body: "forged",
-            },
-            "*",
-          ),
-        );
+      await frame.locator("body").evaluate(() =>
+        parent.postMessage(
+          {
+            type: "thread.create",
+            source: { repository: "evil/repo" },
+            body: "forged",
+          },
+          "*",
+        ),
+      );
       await page.waitForTimeout(100);
       assert.equal(
         requests.filter(

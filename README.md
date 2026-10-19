@@ -23,13 +23,13 @@ No database, application server, analytics, or third-party preview service. The 
 
 1. Clone this repo into `~/code/artifact-threads`, or extract the extension ZIP.
 2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, and choose **Load unpacked** → `extension/`.
-3. Complete the [GitHub App setup](docs/github-app-setup.md) once. Configure the public client ID in the workspace. The app needs **Issues: read/write**, **Contents: read-only**, and automatic **Metadata: read-only** on selected repositories; it needs no code-write access, notifications permission, client secret, or private key.
+3. [Install Artifact Threads](https://github.com/apps/artifact-threads/installations/new) on the repositories you want to review. An organization owner may need to approve installation. The public client ID is already configured. See [GitHub App setup](docs/github-app-setup.md) for details. The app needs **Issues: read/write**, **Contents: read-only**, and automatic **Metadata: read-only** on selected repositories; it needs no code-write access, notifications permission, client secret, or private key.
 4. Each reviewer clicks **Connect GitHub**, enters the displayed code on GitHub, and approves the connection using their own account. The app must also be installed on the relevant repositories. Organization installation does not replace personal authorization.
 5. Add allowed repositories such as `your-org/artifacts`, one per line, and save.
 6. While viewing a GitHub HTML file or Raw URL, click the extension → **Review this artifact**. You can also paste a file URL in the workspace.
 7. Turn on **Comment mode**, select a passage or click an image/node, and post. Turn it off to use the artifact's own controls.
 
-The app owner supplies the client ID once per unpacked installation; a distributed build preconfigures that public ID in `extension/app-config.js`. This initial build has no registered GitHub App baked in. Live authorization requires your app registration; no hosted service is necessary.
+This build uses the registered [Artifact Threads GitHub App](https://github.com/apps/artifact-threads). Colleagues do not need to register an app or enter a client ID. Advanced settings support a different app for independent deployments; no hosted service is necessary.
 
 After code changes, reload the extension and reopen its workspace. Keep the installation folder in place.
 
@@ -66,7 +66,7 @@ npm run package
 
 The browser test loads the actual unpacked extension in an isolated Chromium profile. A local HTTPS fixture stands in for GitHub's API and device authorization endpoints. It covers selection, image pins, posts/replies, resolve/reopen, stale targets, metadata, and the sandbox boundary without contacting GitHub or posting real issues.
 
-**Live GitHub App installation and authorization have not been tested by the fixture suite.** That is the next live-use check after registration.
+**Live GitHub App installation and authorization have not been tested by the fixture suite.** That remains the next live-use check.
 
 `npm run package` creates an extension-only ZIP in `dist/`. There are no runtime third-party dependencies.
 
