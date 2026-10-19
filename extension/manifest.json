@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Artifact Threads",
+  "version": "0.1.0",
+  "description": "Conversations pinned to HTML. Review portable artifacts with GitHub issues, authorship, and @mentions. No backend.",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://api.github.com/*", "https://github.com/*"],
+  "action": {
+    "default_title": "Review this HTML artifact",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "worker.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "viewer.html",
+    "open_in_tab": true
+  },
+  "sandbox": {
+    "pages": ["sandbox.html"]
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.github.com https://github.com; frame-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "sandbox": "sandbox allow-scripts allow-downloads; default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data: blob:; media-src data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

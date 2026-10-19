@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light dark;
+  font:
+    14px/1.6 system-ui,
+    sans-serif;
+}
+body {
+  width: 290px;
+  margin: 0;
+  padding: 22px;
+}
+strong {
+  font-size: 19px;
+}
+p {
+  opacity: 0.75;
+}
+button {
+  display: block;
+  width: 100%;
+  padding: 11px;
+  margin-top: 10px;
+  border: 1px solid #77858d;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+button:first-of-type {
+  background: #17634e;
+  color: white;
+  border-color: #17634e;
+}
+#status {
+  font-size: 12px;
+}

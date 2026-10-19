@@ -1,0 +1,19 @@
+{
+  "name": "artifact-threads",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pin GitHub conversations to portable HTML artifacts.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/core.test.js",
+    "test:browser": "node --test test/browser.test.js",
+    "check": "node scripts/check.mjs",
+    "package": "python3 scripts/package.py"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

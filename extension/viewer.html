@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Artifact Threads</title>
+    <link rel="stylesheet" href="viewer.css" />
+    <script src="viewer.js" type="module"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="viewer.html"
+        ><span class="mark" aria-hidden="true">⌗</span>Artifact Threads</a
+      ><span class="tagline">Conversations belong next to the work.</span
+      ><button id="settings-toggle" type="button" aria-expanded="false">
+        Settings
+      </button>
+    </header>
+    <section
+      id="settings"
+      class="settings"
+      hidden
+      aria-labelledby="settings-title"
+    >
+      <div>
+        <p class="eyebrow">One-time connection</p>
+        <h1 id="settings-title">Your GitHub. Your repositories.</h1>
+        <p>
+          The app needs Issues read/write and Contents read-only on selected
+          repositories. It acts as you; artifacts never receive your
+          credentials.
+        </p>
+        <p class="small">
+          First setup: register a GitHub App with device flow enabled, install
+          it on selected repositories, and enter its public client ID here. No
+          client secret or backend is needed. Each colleague then connects their
+          own GitHub account.
+        </p>
+      </div>
+      <form id="settings-form">
+        <label
+          >Public GitHub App client ID<input
+            id="client-id"
+            placeholder="Iv1.…"
+            autocomplete="off" /></label
+        ><label
+          >Allowed repositories<textarea
+            id="repositories"
+            rows="3"
+            placeholder="your-org/artifacts"
+            spellcheck="false"
+          ></textarea>
+        </label>
+        <p class="small">
+          One owner/repository per line. This allowlist is independent of the
+          app installation.
+        </p>
+        <div class="actions">
+          <button type="submit">Save settings</button
+          ><button type="button" id="connect">Connect GitHub</button
+          ><button type="button" id="disconnect" hidden>Disconnect</button>
+        </div>
+        <p id="connection" role="status"></p>
+        <div id="device" hidden>
+          <p>Enter this code on GitHub:</p>
+          <strong id="device-code"></strong>
+          <p>
+            <a id="verify" target="_blank" rel="noreferrer"
+              >Authorize on GitHub ↗</a
+            >
+          </p>
+          <p class="small">
+            Keep this workspace open. It will finish connecting after GitHub
+            confirms.
+          </p>
+        </div>
+      </form>
+    </section>
+    <form class="open-bar" id="open-form">
+      <label for="source-url">Artifact</label
+      ><input
+        id="source-url"
+        type="url"
+        placeholder="https://github.com/your-org/artifacts/blob/main/report.html"
+        required
+      /><button type="submit" id="open">Open artifact</button>
+    </form>
+    <div class="notice" id="notice" role="status">
+      Open a GitHub HTML file or use the toolbar button while viewing a Raw URL.
+    </div>
+    <main class="workspace">
+      <section class="preview" aria-label="Artifact preview">
+        <div class="preview-bar">
+          <p id="file-name">No artifact loaded</p>
+          <button id="comment-mode" type="button" aria-pressed="false" disabled>
+            Comment mode
+          </button>
+        </div>
+        <p class="version" id="version">
+          Inline scripts and embedded assets run in an isolated frame. External
+          resources and network calls are blocked.
+        </p>
+        <div class="empty" id="empty">
+          <span class="empty-symbol" aria-hidden="true">⌗</span>
+          <h2>Read it. Point at it. Discuss it.</h2>
+          <p>
+            Select text or a node in any self-contained HTML artifact. Every
+            pinned conversation becomes a GitHub issue with its own
+            participants, @mentions, and notifications.
+          </p>
+          <p class="small">No database. No preview server. No telemetry.</p>
+        </div>
+        <iframe
+          id="artifact"
+          src="sandbox.html"
+          title="Isolated artifact"
+          sandbox="allow-scripts allow-downloads"
+          hidden
+        ></iframe>
+      </section>
+      <aside class="sidebar" aria-labelledby="threads-title">
+        <div class="sidebar-top">
+          <h2 id="threads-title">Threads</h2>
+          <button id="refresh" type="button" disabled>Refresh</button>
+        </div>
+        <label class="filter"
+          ><input type="checkbox" id="show-closed" /> Include resolved</label
+        >
+        <p class="small">
+          One issue per pinned conversation. Refresh fetches changes from
+          GitHub.
+        </p>
+        <div id="threads">
+          <p class="placeholder">Open an artifact to see its conversations.</p>
+        </div>
+        <section class="composer" id="composer" hidden>
+          <h3>New conversation</h3>
+          <p class="selection" id="selected-target"></p>
+          <label
+            >Title<input
+              id="thread-title"
+              maxlength="150"
+              placeholder="What needs discussion?" /></label
+          ><label
+            >Comment<textarea
+              id="thread-body"
+              rows="4"
+              maxlength="10000"
+              placeholder="Ask a question or suggest a change. @mentions work here."
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button id="post" type="button">Post thread</button
+            ><button id="cancel" type="button">Cancel</button>
+          </div>
+        </section>
+        <section class="conversation" id="conversation" hidden>
+          <div class="conversation-top">
+            <h3 id="conversation-title"></h3>
+            <button
+              id="conversation-close"
+              type="button"
+              aria-label="Close thread details"
+            >
+              ×
+            </button>
+          </div>
+          <p class="small" id="conversation-meta"></p>
+          <p class="selection" id="conversation-target"></p>
+          <div class="actions">
+            <button id="jump" type="button">Show pin</button
+            ><a id="original" target="_blank" rel="noreferrer"
+              >Reviewed version ↗</a
+            ><a id="github" target="_blank" rel="noreferrer">GitHub issue ↗</a>
+          </div>
+          <div id="comments"></div>
+          <label
+            >Reply<textarea
+              id="reply-body"
+              rows="3"
+              maxlength="10000"
+              placeholder="Write a reply. @mentions notify through GitHub."
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button id="reply" type="button">Post reply</button
+            ><button id="resolve" type="button">Resolve thread</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+    <footer>
+      Artifact Threads · Built with Codex · GitHub is the only remote service.
+      Only comments and selected context are posted when you submit.
+    </footer>
+  </body>
+</html>
