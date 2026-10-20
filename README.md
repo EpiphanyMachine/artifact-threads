@@ -11,7 +11,7 @@ Built with Codex. Independently developed by Greg Hilkert; MIT licensed.
 ## What it does
 
 - Open a GitHub `blob` or `raw.githubusercontent.com` HTML link, including private files you are authorized to read.
-- Review an immutable commit version in an isolated frame. Inline scripts and embedded assets work; external resources and network calls inside the artifact are blocked.
+- Review an immutable commit version in an isolated frame. Embedded assets work. Artifact scripts are off by default and can be enabled per repository; annotations work in either mode. External resources and network calls inside the artifact are blocked.
 - Click **Add comment**, select text or click a node/image, and post a thread from the trusted sidebar.
 - Read authors, timestamps, and replies; use `@username` or `@organization/team` in your comments. GitHub handles notifications according to its access and notification settings. Type `@` in a new comment or reply to suggest repository issue assignees; use arrow keys and Enter/Tab, or click a username. Suggestions use existing Issues access, cover up to 1,000 assignees, and are not a complete directory of everyone you can mention. Team mentions can be typed manually.
 - Resolve/reopen threads by closing/reopening their GitHub issues. Each issue has independent participants and subscriptions.
@@ -25,7 +25,7 @@ No database, application server, analytics, or third-party preview service. The 
 2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, and choose **Load unpacked** → `extension/`.
 3. [Install Artifact Threads](https://github.com/apps/artifact-threads/installations/new) on the repositories you want to review. An organization owner may need to approve installation. The public client ID is already configured. See [GitHub App setup](docs/github-app-setup.md) for details. The app needs **Issues: read/write**, **Contents: read-only**, and automatic **Metadata: read-only** on selected repositories; it needs no code-write access, notifications permission, client secret, or private key.
 4. Each reviewer clicks **Connect GitHub**, enters the displayed code on GitHub, and approves the connection using their own account. The app must also be installed on the relevant repositories. Organization installation does not replace personal authorization.
-5. Add allowed repositories such as `your-org/artifacts`, one per line, and save.
+5. Add allowed repositories such as `your-org/artifacts`, one per line, and save. Leave artifact scripts off unless you trust every matching file and revision in that repository. Use the separate **Allow scripts** checkbox to opt in. Save and reload open artifacts after changing permissions.
 6. Click **Raw** on a GitHub HTML file in an allowed repository. Artifact Threads automatically opens the review in the same tab, loads the artifact and comments, and shows a floating toolbar. No extension-button click is needed. You can still open a file manually from the extension popup.
 7. Click **Add comment**, select a passage or click an image/node, and post. Click it again to restore the artifact’s controls, or use **Hide all comments** for a clean reading view.
 
@@ -54,6 +54,8 @@ The workspace fetches threads on load and when you click **Refresh**. It does no
 ## Current boundaries
 
 - **GitHub only**, on desktop Chromium 120+. Chromium is covered by the unpacked-extension test. Chrome, Edge, Brave, and Arc are expected targets but require individual live checks. Firefox and Safari are not supported yet.
+- **Scripts off by default**, including existing installations upgrading from 0.1. Per-repository script opt-in is independent of the allowlist and GitHub App installation. Annotation selection, pins and comments work with scripts off. Removing and re-adding a repository clears its script selection.
+- **Artifact downloads are blocked**, including automatic downloads, download links and clicked exports. Enabling scripts does not enable downloads; there is no download setting. Browser Save Page As is separate, and locally opened copies are outside this extension’s protections.
 - Self-contained `.html` and `.htm`, up to **5 MiB**. Embedded assets are supported; multi-file applications and remote fonts/scripts/images are not. External navigation from the artifact frame is restricted; use the trusted sidebar links to open GitHub.
 - Comments on ordinary DOM text, images, SVG nodes, and elements. Canvas is treated as one element; its internal objects are not separate DOM nodes. Shadow-DOM contents are not traversed in this first version.
 - Comment mode intercepts artifact clicks. Interactive state is not automatically replayed when reopening a thread; a target hidden by the artifact's UI may need to be revealed first.
@@ -78,7 +80,9 @@ The browser test loads the actual unpacked extension in an isolated Chromium pro
 
 **Live GitHub App installation and authorization have not been tested by the fixture suite.** That remains the next live-use check.
 
-`npm run package` creates an extension-only ZIP in `dist/`. There are no runtime third-party dependencies.
+`npm run package` creates an extension-only ZIP in `dist/`. It uses an explicit list of runtime files, includes LICENSE and PRIVACY.md, and rejects symlink inputs. There are no runtime third-party dependencies.
+
+CI runs tests, checks, Chromium fixtures and packaging on pull requests and main pushes; it does not publish automatically. Report security issues using [SECURITY.md](SECURITY.md).
 
 ## Browser and GitHub references
 

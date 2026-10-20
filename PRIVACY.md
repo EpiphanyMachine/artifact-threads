@@ -10,7 +10,7 @@ The extension listens for top-level navigation to `raw.githubusercontent.com`. F
 
 The browser extension fetches the selected HTML from GitHub's Contents API, pins it to an exact commit, and renders it locally in a sandbox. The full artifact is not uploaded to a preview service or copied into issues. Repository settings and the GitHub connection remain in the browser profile.
 
-The extension stores the public client ID, allowed repository names, the connected user's display name/login, and access/refresh tokens in `chrome.storage.local`, restricted to trusted extension contexts. They are not synced. This is browser-profile storage, not an independently encrypted credential vault; software with access to the profile may be able to inspect it.
+The extension stores the public client ID, allowed repository names and per-repository script permissions, the connected user's display name/login, and access/refresh tokens in `chrome.storage.local`, restricted to trusted extension contexts. They are not synced. This is browser-profile storage, not an independently encrypted credential vault; software with access to the profile may be able to inspect it.
 
 Artifact bodies, unposted comments, and selection drafts are held only in the open workspace. They are not saved as a browsing-history database. Raw-file query parameters, including temporary GitHub raw tokens, are discarded when opening a review and are never used as API credentials.
 
@@ -19,7 +19,7 @@ Artifact bodies, unposted comments, and selection drafts are held only in the op
 - Device authorization and token refresh requests, and your authorized API requests.
 - File, commit, issue, and comment reads needed for the artifact you open.
 - Repository issue-assignee reads when you type an @mention. Suggestions are filtered locally and cached only in the open workspace; partial usernames are not sent as search queries.
-- When you explicitly post: the title, comment, selected quote or node description, target/anchor metadata, and immutable source identity. The selected context becomes part of the GitHub issue and is visible to people who can access it.
+- When you explicitly post: the title, comment, selected quote or node description, target/anchor metadata (including up to 80 characters before and after a text selection), and immutable source identity. This metadata is base64-encoded for transport, not encrypted. The selected context becomes part of the GitHub issue and is visible to people who can access it.
 - When you explicitly reply or resolve/reopen: that comment or state change.
 
 GitHub's own storage, access control, request handling, notifications, and retention apply. A reviewer cannot gain repository access through the extension beyond the intersection of their GitHub access and the app's installation/permissions.
@@ -39,12 +39,14 @@ There are no content scripts, cookie-reading permission, arbitrary-host permissi
 
 ## Artifact isolation
 
-The artifact runs in an opaque-origin sandbox without extension APIs or access to the trusted sidebar's credentials. It supports inline JavaScript/CSS, embedded data/blob assets, and user-initiated downloads. External resources, fetch/XHR, frames, form submissions, normal storage, and top navigation are blocked by the sandbox and policy.
+The artifact runs in an opaque-origin sandbox without extension APIs or access to the trusted sidebar's credentials. Inline CSS and embedded data/blob assets are supported. Artifact JavaScript is off by default, including when upgrading from 0.1. Enabling scripts is a separate per-repository trust decision covering every matching file and revision. The extension’s annotation code continues to work with artifact scripts off. External resources, fetch/XHR, frames, form submissions, normal storage, and top navigation are blocked by the sandbox and policy.
 
 The annotation runtime reads DOM selections and node evidence inside that sandbox and sends bounded target metadata to the trusted sidebar. Messages from the artifact cannot create issues or invoke GitHub API writes. Only explicit controls in the extension workspace do that.
 
-The artifact itself can manipulate its own DOM and try to mislead a reviewer. This is intended for trusted, self-contained documents, not malware analysis. A DOM selector or fingerprint is annotation evidence, not a security identity.
+**Artifact downloads are blocked in both modes**, including automatic downloads, download links and exports triggered by clicking a button. There is no download setting. Browser Save Page As is separate; a saved copy opened locally is outside the extension’s protections. Save and reload open artifacts to apply changed script permissions.
+
+When scripts are enabled, the artifact itself can manipulate its own DOM and try to mislead a reviewer. This is intended for trusted, self-contained documents, not malware analysis. A DOM selector or fingerprint is annotation evidence, not a security identity.
 
 ## Disconnect and removal
 
-Disconnect removes stored access/refresh tokens and cached user information. It does not delete issues, replies, or already posted context, and does not itself revoke the GitHub authorization. Revoke that grant in GitHub to invalidate it. Removing the extension removes its local storage; GitHub feedback remains in the repository.
+Disconnect removes stored access/refresh tokens and cached user information and invalidates pending authorization/refresh results so they cannot restore the connection. Requests already sent to GitHub cannot be recalled. It does not delete issues, replies, or already posted context, and does not itself revoke the GitHub authorization. Revoke that grant in GitHub to invalidate it. Removing the extension removes its local storage; GitHub feedback remains in the repository.

@@ -45,6 +45,7 @@ test(
     const issues = [],
       comments = new Map(),
       requests = [];
+    let overrideHTML = null;
     let changed = false,
       nextIssue = 1,
       denyWrites = false;
@@ -115,12 +116,12 @@ test(
             sha: contentChanged ? "f".repeat(40) : "b".repeat(40),
             encoding: "base64",
             content: Buffer.from(
-              contentChanged
+              overrideHTML ?? (contentChanged
                 ? html.replace(
                     "A requirement with stable surrounding context.",
                     "The requirement was deliberately replaced.",
                   )
-                : html,
+                : html),
             ).toString("base64"),
           });
         }
@@ -285,6 +286,7 @@ test(
       const id = new URL(worker.url()).host;
       const page = await context.newPage();
       page.setDefaultTimeout(10000);
+      let expectedPolicyBlocks = true;
       const errors = [],
         policyErrors = [];
       const collectPolicyErrors = (target) =>
@@ -295,7 +297,7 @@ test(
               message.text(),
             )
           )
-            policyErrors.push(message.text());
+            if (!expectedPolicyBlocks) policyErrors.push(message.text());
         });
       collectPolicyErrors(page);
       context.on("page", collectPolicyErrors);
@@ -370,6 +372,23 @@ test(
           .evaluate((el) => el.getBoundingClientRect().width),
         1380,
       );
+      await frame.getByRole("button", { name: "Count: 0" }).click();
+      assert.equal(await frame.getByRole("button", { name: "Count: 0" }).count(), 1);
+      // The extension's annotation runtime still runs when artifact scripts do not.
+      await page.getByRole("button", { name: "Add comment", exact: true }).click();
+      await frame.locator("#chart").click();
+      await page.getByRole("heading", { name: "New conversation", exact: true }).waitFor();
+      await page.locator("#cancel").click();
+      await page.getByRole("button", { name: "Add comment", exact: true }).click();
+      const options = await context.newPage();
+      await options.goto(`chrome-extension://${id}/viewer.html#settings`);
+      assert.equal(await options.getByLabel("Allow scripts in your-org/artifacts", { exact: true }).isChecked(), false);
+      await options.getByLabel("Allow scripts in your-org/artifacts", { exact: true }).check();
+      await options.getByRole("button", { name: "Save settings", exact: true }).click();
+      await options.getByText("Settings saved. Reload open artifacts to apply script permissions.", { exact: true }).waitFor();
+      await options.close();
+      expectedPolicyBlocks = false;
+      await page.reload();
       await frame.getByRole("button", { name: "Count: 0" }).click();
       await frame.getByRole("button", { name: "Count: 1" }).waitFor();
       assert.equal(
@@ -777,6 +796,44 @@ test(
         ),
       );
       await page.screenshot({ path: join(temp, "mobile.png") });
+      expectedPolicyBlocks = true;
+      const probe = await context.newPage();
+      const downloads = [];
+      probe.on("download", (download) => downloads.push(download));
+      overrideHTML = `<!doctype html><body onload="document.body.dataset.handler='ran'">
+        <h1>Security fixture</h1><button id="export" onclick="document.body.dataset.click='ran'; download()">Export</button>
+        <a id="link" download="synthetic.txt" href="data:text/plain,synthetic">Download link</a>
+        <a id="javascript" href="javascript:document.body.dataset.link='ran'">Script link</a>
+        <script>document.body.dataset.script='ran';function download(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['synthetic']));a.download='synthetic.txt';a.click();document.body.dataset.attempted='true'}download();</script></body>`;
+      const probeURL = `chrome-extension://${id}/viewer.html?source=` + encodeURIComponent("https://github.com/your-org/artifacts/blob/" + "a".repeat(40) + "/docs/report.html");
+      await probe.goto(probeURL);
+      const probeFrame = probe.frameLocator("#artifact");
+      await probeFrame.getByRole("heading", { name: "Security fixture" }).waitFor();
+      await probeFrame.locator("body[data-attempted=true]").waitFor();
+      await probeFrame.locator("#export").click();
+      await probeFrame.locator("#link").click();
+      await assert.rejects(probe.waitForEvent("download", { timeout: 500 }), /Timeout/);
+      assert.equal(downloads.length, 0);
+      // Revoke via the real settings UI; saving applies on the next load.
+      const options2 = await context.newPage();
+      await options2.goto(`chrome-extension://${id}/viewer.html#settings`);
+      await options2.getByLabel("Allow scripts in your-org/artifacts", { exact: true }).uncheck();
+      await options2.getByRole("button", { name: "Save settings", exact: true }).click();
+      await options2.getByText("Settings saved. Reload open artifacts to apply script permissions.", { exact: true }).waitFor();
+      await probe.reload();
+      await probeFrame.getByRole("heading", { name: "Security fixture" }).waitFor();
+      await probeFrame.locator("#export").click();
+      await probeFrame.locator("#javascript").click();
+      assert.equal(await probeFrame.locator("body").getAttribute("data-script"), null);
+      assert.equal(await probeFrame.locator("body").getAttribute("data-handler"), null);
+      assert.equal(await probeFrame.locator("body").getAttribute("data-click"), null);
+      assert.equal(await probeFrame.locator("body").getAttribute("data-link"), null);
+      await probe.getByRole("button", { name: "Add comment", exact: true }).click();
+      await probeFrame.locator("h1").click();
+      await probe.getByRole("heading", { name: "New conversation", exact: true }).waitFor();
+      await probe.close();
+      await options2.close();
+      overrideHTML = null;
       const storage = await worker.evaluate(() => chrome.storage.local.get());
       assert.equal(JSON.stringify(storage).includes("do-not-store"), false);
       assert.equal(

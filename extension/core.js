@@ -21,7 +21,13 @@ export function settings(input) {
   const clientId = String(input.clientId || "").trim();
   if (clientId && !/^[a-zA-Z\d_.-]{5,100}$/.test(clientId))
     throw new Error("Enter the public GitHub App client ID, not a secret.");
-  return { repositories, clientId };
+  const scripts = input.scriptRepositories ?? [];
+  if (!Array.isArray(scripts) || scripts.some((name) => typeof name !== "string"))
+    throw new Error("Script permissions must be repository names.");
+  const scriptRepositories = [...new Set(scripts.map(repository))];
+  if (scriptRepositories.some((name) => !repositories.includes(name)))
+    throw new Error("Only allowed repositories can run artifact scripts.");
+  return { repositories, clientId, scriptRepositories };
 }
 export function parseArtifact(input) {
   const url = new URL(input);

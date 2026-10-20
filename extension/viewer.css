@@ -796,3 +796,8 @@ body[data-loaded="true"].settings-open .topbar {
     flex-wrap: wrap;
   }
 }
+
+#script-options { display: grid; gap: 8px; }
+#script-options label { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+#script-options input { width: auto; }
+fieldset { min-width: 0; border: 1px solid #c6cec9; margin: 16px 0; padding: 12px; }
