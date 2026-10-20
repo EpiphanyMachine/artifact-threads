@@ -1,3 +1,4 @@
+import { panelLayout } from "./panel-layout.js";
 import { attachMentions } from "./mentions.js";
 import { SCHEMA, sourceURL, targetCheck } from "./core.js";
 const $ = (id) => document.getElementById(id);
@@ -15,6 +16,33 @@ let artifact = null,
   authenticating = false,
   opening = false;
 let noticeTimer;
+let panelView = "list";
+const replyDrafts = new Map();
+$("reply-body").addEventListener("input", () => {
+  if (!selected) return;
+  const value = $("reply-body").value;
+  if (value.trim()) replyDrafts.set(selected.number, value);
+  else replyDrafts.delete(selected.number);
+});
+const layout = panelLayout(() => {
+  const target =
+    panelView === "compose"
+      ? draft?.target
+      : panelView === "thread"
+        ? selected?.annotation.target
+        : null;
+  if (target) frameMessage("reveal", { target });
+});
+function setPanelView(view) {
+  const changed = panelView !== view;
+  panelView = view;
+  $("thread-list").hidden = view !== "list";
+  $("composer").hidden = view !== "compose";
+  $("conversation").hidden = view !== "thread";
+  $("conversation-close").hidden = view !== "thread";
+  if (changed) $("comments-drawer").scrollTop = 0;
+}
+
 async function rpc(type, data = {}) {
   const response = await chrome.runtime.sendMessage({ type, ...data });
   if (!response?.ok)
@@ -67,6 +95,9 @@ $("hide-comments").onclick = () => setCommentsVisible(false);
 function showDrawer(show) {
   if (show && !commentsVisible) setCommentsVisible(true);
   $("comments-drawer").hidden = !show;
+  $("panel-divider").hidden = !show;
+  document.querySelector(".workspace").classList.toggle("drawer-open", show);
+  if (show) layout.settled();
   $("threads-toggle").setAttribute("aria-expanded", String(show));
 }
 $("threads-toggle").onclick = () => showDrawer(true);
@@ -113,17 +144,16 @@ addEventListener("message", (event) => {
     frameMessage("visibility", { visible: commentsVisible });
     frameMessage("mode", { enabled: commentMode });
     sendPins();
-    notice(
-      "Artifact loaded at an exact commit. Use Add comment to select text or a node.",
-    );
+    layout.settled();
+    if ($("notice").dataset.error !== "true") notice("");
   }
   if (data.type === "target" && commentMode) {
     try {
       draft = { id: crypto.randomUUID(), target: targetCheck(data.target) };
       $("selected-target").textContent = targetText(draft.target);
       showDrawer(true);
-      $("composer").hidden = false;
-      $("conversation").hidden = true;
+      setPanelView("compose");
+      layout.settled();
       $("thread-title").focus();
       notice(
         "Selection ready. Posting creates one GitHub issue as your connected user.",
@@ -298,10 +328,12 @@ function commentElement(author, body, date, url) {
 async function openThread(thread) {
   showDrawer(true);
   frameMessage("active", { number: thread.number });
+  if (selected?.number !== thread.number) $("comments-drawer").scrollTop = 0;
   selected = thread;
+  $("reply-body").value = replyDrafts.get(thread.number) || "";
   draft = null;
-  $("composer").hidden = true;
-  $("conversation").hidden = false;
+  setPanelView("thread");
+  layout.settled();
   $("conversation-title").textContent = thread.title.replace(
     /^\[Artifact Threads\] /,
     "",
@@ -428,8 +460,7 @@ async function openArtifact() {
     selected = null;
     draft = null;
     locations.clear();
-    $("composer").hidden = true;
-    $("conversation").hidden = true;
+    setPanelView("list");
     $("thread-title").value = "";
     $("thread-body").value = "";
     $("empty").hidden = true;
@@ -503,7 +534,7 @@ $("show-closed").onchange = () => {
 };
 $("cancel").onclick = () => {
   draft = null;
-  $("composer").hidden = true;
+  setPanelView("list");
   $("thread-title").value = "";
   $("thread-body").value = "";
 };
@@ -541,8 +572,9 @@ $("post").onclick = async () => {
 $("conversation-close").onclick = () => {
   frameMessage("active", { number: null });
   selected = null;
-  $("conversation").hidden = true;
+  setPanelView("list");
   renderThreads();
+  document.querySelector("#threads .thread")?.focus();
 };
 $("jump").onclick = () => {
   if (selected) frameMessage("jump", { number: selected.number });
@@ -557,6 +589,7 @@ $("reply").onclick = async () => {
       number,
       body: $("reply-body").value,
     });
+    replyDrafts.delete(number);
     $("reply-body").value = "";
     if (selected?.number === number) await openThread(selected);
     notice("Reply posted as your GitHub user.");
@@ -590,7 +623,7 @@ $("resolve").onclick = async () => {
 addEventListener("beforeunload", (event) => {
   if (
     (draft && ($("thread-title").value || $("thread-body").value)) ||
-    $("reply-body").value.trim()
+    replyDrafts.size > 0
   ) {
     event.preventDefault();
     event.returnValue = "";

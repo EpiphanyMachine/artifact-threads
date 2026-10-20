@@ -477,7 +477,11 @@ footer {
   color: #153f30;
 }
 
-/* The artifact owns the viewport. Review controls remain in the trusted layer. */
+/* Reserve a permanent tool rail and dock discussions beside the artifact. */
+:root {
+  --review-width: 390px;
+  --review-height: 45dvh;
+}
 .topbar {
   gap: 8px;
 }
@@ -493,18 +497,17 @@ body[data-loaded="true"] {
 body[data-loaded="true"] .topbar {
   position: fixed;
   top: 12px;
-  right: 12px;
+  right: 6px;
+  left: auto;
   z-index: 20;
-  padding: 6px;
+  padding: 5px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 3px 18px #0002;
+  background: var(--panel);
 }
 body[data-loaded="true"] .brand,
 body[data-loaded="true"] .tagline,
-body[data-loaded="true"] footer {
-  display: none;
-}
+body[data-loaded="true"] footer,
 body[data-loaded="true"] .open-bar {
   display: none;
 }
@@ -513,43 +516,111 @@ body[data-loaded="true"].settings-open .open-bar {
   position: fixed;
   top: 70px;
   left: 16px;
-  right: 16px;
+  right: 68px;
   z-index: 32;
   background: var(--panel);
   border: 1px solid var(--line);
 }
 body[data-loaded="true"] .settings {
   position: fixed;
-  inset: 140px 16px 16px;
+  inset: 160px 68px 16px 16px;
   z-index: 32;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
 }
 body[data-loaded="true"] .workspace {
-  display: block;
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0 60px 0 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  background: var(--panel);
+}
+body[data-loaded="true"] .workspace.drawer-open {
+  grid-template-columns: minmax(0, 1fr) 8px clamp(
+      300px,
+      var(--review-width),
+      calc(100vw - 428px)
+    );
 }
 body[data-loaded="true"] .preview {
-  position: fixed;
-  inset: 0;
+  position: static;
+  grid-area: 1 / 1;
+  min-height: 0;
+  overflow: hidden;
 }
 body[data-loaded="true"] #artifact {
+  width: 100%;
   height: 100%;
   min-height: 0;
   flex: none;
 }
 .sidebar {
-  position: fixed;
-  top: 70px;
-  bottom: 12px;
-  right: 12px;
-  width: min(390px, calc(100vw - 24px));
+  position: static;
+  grid-area: 1 / 3;
+  width: auto;
+  min-height: 0;
   max-height: none;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 8px 32px #0002;
-  z-index: 21;
+  overflow: auto;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 18px;
+}
+.sidebar-top {
+  position: sticky;
+  top: -18px;
+  padding: 6px 0;
+  background: var(--panel);
+  z-index: 2;
+}
+.sidebar-top h2 {
+  flex: 1;
+}
+.thread-list {
+  display: grid;
+  gap: 16px;
+}
+.composer,
+.conversation {
+  border-top: 0;
+  padding-top: 0;
+}
+.conversation-top button {
+  display: none;
+}
+.panel-divider {
+  grid-area: 1 / 2;
+  background: var(--bg);
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 3;
+}
+.panel-divider::after {
+  content: "";
+  position: absolute;
+  inset: 35% 2px;
+  background: var(--line);
+  border-radius: 3px;
+}
+.panel-divider:hover::after,
+.panel-divider:focus-visible::after {
+  background: var(--accent);
+}
+.panel-divider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.resizing #artifact {
+  pointer-events: none;
 }
 .source-details {
   color: var(--muted);
@@ -566,15 +637,48 @@ body[data-loaded="true"] .notice {
   bottom: 12px;
   left: 12px;
   z-index: 25;
-  max-width: min(440px, calc(100vw - 24px));
+  max-width: min(440px, calc(100vw - 84px));
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 14px;
   box-shadow: 0 3px 12px #0001;
+  pointer-events: none;
 }
 body[data-loaded="true"] .notice:empty {
   display: none;
+}
+body[data-loaded="true"] .notice[data-error="false"] {
+  max-width: 280px;
+}
+@media (max-width: 959px) {
+  body[data-loaded="true"] .workspace.drawer-open {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 8px clamp(
+        180px,
+        var(--review-height),
+        calc(100dvh - 188px)
+      );
+  }
+  .sidebar {
+    grid-area: 3 / 1;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .panel-divider {
+    grid-area: 2 / 1;
+    cursor: row-resize;
+  }
+  .panel-divider::after {
+    inset: 2px 35%;
+  }
+  body.resizing {
+    cursor: row-resize;
+  }
+  body[data-loaded="true"] .notice {
+    bottom: auto;
+    top: 8px;
+  }
 }
 @media (max-width: 600px) {
   .topbar {
@@ -586,23 +690,13 @@ body[data-loaded="true"] .notice:empty {
   .brand {
     flex-basis: 100%;
   }
-  body[data-loaded="true"] .topbar {
-    left: 8px;
-    right: 8px;
-  }
-  .sidebar {
-    top: 74px;
-    right: 8px;
-    bottom: 8px;
-    width: calc(100vw - 16px);
-  }
   body[data-loaded="true"] .settings {
-    inset: 190px 8px 8px;
+    inset: 190px 68px 8px 8px;
   }
   body[data-loaded="true"].settings-open .open-bar {
     top: 70px;
     left: 8px;
-    right: 8px;
+    right: 68px;
   }
 }
 
@@ -684,12 +778,6 @@ body[data-loaded="true"] .notice:empty {
   background: var(--ink);
   color: var(--panel);
 }
-body[data-loaded="true"] .topbar {
-  top: 18px;
-  right: 10px;
-  left: auto;
-  padding: 5px;
-}
 body[data-loaded="true"] .review-tools {
   flex-direction: column;
   margin: 0;
@@ -703,23 +791,7 @@ body[data-loaded="true"].settings-open #settings-toggle {
 body[data-loaded="true"].settings-open .topbar {
   flex-direction: column;
 }
-.sidebar {
-  top: 12px;
-  right: 68px;
-  width: min(390px, calc(100vw - 80px));
-}
 @media (max-width: 600px) {
-  body[data-loaded="true"] .topbar {
-    top: 12px;
-    right: 6px;
-    left: auto;
-  }
-  .sidebar {
-    top: 8px;
-    right: 62px;
-    bottom: 8px;
-    width: calc(100vw - 70px);
-  }
   .comment > div {
     flex-wrap: wrap;
   }

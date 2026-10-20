@@ -155,6 +155,16 @@
           hidden
         ></iframe>
       </section>
+      <div
+        id="panel-divider"
+        class="panel-divider"
+        role="separator"
+        tabindex="0"
+        aria-label="Resize comments panel"
+        aria-orientation="vertical"
+        aria-controls="comments-drawer"
+        hidden
+      ></div>
       <aside
         class="sidebar"
         id="comments-drawer"
@@ -162,7 +172,16 @@
         hidden
       >
         <div class="sidebar-top">
-          <h2 id="threads-title">Threads</h2>
+          <button
+            id="conversation-close"
+            type="button"
+            aria-label="Back to comments"
+            title="Back to comments"
+            hidden
+          >
+            ←
+          </button>
+          <h2 id="threads-title">Comments</h2>
           <div class="actions">
             <button id="refresh" type="button" disabled>Refresh</button>
             <button id="drawer-close" type="button" aria-label="Close comments">
@@ -170,18 +189,22 @@
             </button>
           </div>
         </div>
-        <details class="source-details">
-          <summary>Artifact version</summary>
-          <p id="file-name">No artifact loaded</p>
-          <p class="version" id="version">
-            Open an artifact to review its exact version.
-          </p>
-        </details>
         <label class="filter"
           ><input type="checkbox" id="show-closed" /> Include resolved</label
         >
-        <div id="threads">
-          <p class="placeholder">Open an artifact to see its conversations.</p>
+        <div id="thread-list" class="thread-list">
+          <details class="source-details">
+            <summary>Artifact version</summary>
+            <p id="file-name">No artifact loaded</p>
+            <p class="version" id="version">
+              Open an artifact to review its exact version.
+            </p>
+          </details>
+          <div id="threads">
+            <p class="placeholder">
+              Open an artifact to see its conversations.
+            </p>
+          </div>
         </div>
         <section class="composer" id="composer" hidden>
           <h3>New conversation</h3>
@@ -207,13 +230,6 @@
         <section class="conversation" id="conversation" hidden>
           <div class="conversation-top">
             <h3 id="conversation-title"></h3>
-            <button
-              id="conversation-close"
-              type="button"
-              aria-label="Close thread details"
-            >
-              ×
-            </button>
           </div>
           <p class="small" id="conversation-meta"></p>
           <div class="target-context" id="target-context" hidden>

@@ -384,6 +384,27 @@ function annotate(channel) {
       activeNumber = data.number;
       position();
     }
+    if (data.type === "reveal") {
+      const location = locate(data.target);
+      if (
+        location.state === "attached" &&
+        location.rect().width &&
+        location.rect().height
+      ) {
+        const rect = location.rect();
+        if (
+          rect.top < 16 ||
+          rect.bottom > innerHeight - 16 ||
+          rect.left < 0 ||
+          rect.right > innerWidth
+        )
+          location.element.scrollIntoView({
+            block: "center",
+            inline: "nearest",
+          });
+        position();
+      }
+    }
     if (data.type === "jump") {
       const record = records.find((item) => item.number === data.number);
       if (record) {
@@ -419,7 +440,12 @@ function annotate(channel) {
     if (event.key === "Escape") send("escape");
   });
   addEventListener("scroll", schedule, true);
-  addEventListener("resize", schedule);
+  let resizeTimer;
+  addEventListener("resize", () => {
+    schedule();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(refresh, 100);
+  });
   const observer = new MutationObserver(() => {
     clearTimeout(observer.timer);
     observer.timer = setTimeout(refresh, 200);

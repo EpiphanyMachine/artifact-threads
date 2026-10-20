@@ -368,7 +368,7 @@ test(
         await page
           .locator("#artifact")
           .evaluate((el) => el.getBoundingClientRect().width),
-        1440,
+        1380,
       );
       await frame.getByRole("button", { name: "Count: 0" }).click();
       await frame.getByRole("button", { name: "Count: 1" }).waitFor();
@@ -410,7 +410,61 @@ test(
       await page
         .getByRole("heading", { name: "New conversation", exact: true })
         .waitFor();
+      assert.equal(await page.locator("#thread-list").isVisible(), false);
+      const docked = await page.evaluate(() => ({
+        artifact: document
+          .getElementById("artifact")
+          .getBoundingClientRect()
+          .toJSON(),
+        panel: document
+          .getElementById("comments-drawer")
+          .getBoundingClientRect()
+          .toJSON(),
+      }));
+      assert.ok(docked.artifact.right <= docked.panel.left);
+      const divider = page.getByRole("separator", {
+        name: "Resize comments panel",
+        exact: true,
+      });
+      await divider.focus();
+      const oldWidth = await page
+        .locator("#comments-drawer")
+        .evaluate((el) => el.getBoundingClientRect().width);
+      await divider.press("ArrowLeft");
+      assert.equal(
+        await page
+          .locator("#comments-drawer")
+          .evaluate((el) => el.getBoundingClientRect().width),
+        oldWidth + 20,
+      );
+      await divider.press("ArrowRight");
+      await page.bringToFront();
+      const grip = await divider.boundingBox();
+      await divider.hover();
+      await page.mouse.down();
+      await page.mouse.move(grip.x - 40, grip.y + grip.height / 2, {
+        steps: 5,
+      });
+      await page.mouse.up();
+      assert.ok(
+        (await page
+          .locator("#comments-drawer")
+          .evaluate((el) => el.getBoundingClientRect().width)) > oldWidth,
+      );
       await page.locator("#thread-title").fill("Clarify the requirement");
+      await page
+        .getByRole("button", { name: "Hide all comments", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Show comments (0 open)", exact: true })
+        .click();
+      assert.equal(
+        await page.locator("#thread-title").inputValue(),
+        "Clarify the requirement",
+      );
+      await page
+        .getByRole("button", { name: "Add comment", exact: true })
+        .click();
       await page.locator("#thread-body").fill("@b");
       await page.getByRole("option", { name: "@bob", exact: true }).waitFor();
       await page.locator("#thread-body").press("Enter");
@@ -425,6 +479,7 @@ test(
         .getByRole("heading", { name: "Clarify the requirement", exact: true })
         .waitFor();
       assert.equal(issues.length, 1);
+      assert.equal(await page.locator("#thread-list").isVisible(), false);
       assert.ok(issues[0].body.includes("@bob"));
       assert.ok(issues[0].body.includes("#artifact-thread=1"));
       await frame
@@ -442,6 +497,11 @@ test(
         .getByRole("button", { name: "Open annotation thread 1", exact: true })
         .click();
       await page.locator("#comments-drawer").waitFor();
+      await page
+        .getByRole("button", { name: "Back to comments", exact: true })
+        .click();
+      await page.locator("#thread-list").waitFor();
+      await page.locator("#threads .thread").first().click();
       await page.locator("#target-context").waitFor({ state: "hidden" });
       // Hide all overlays and stop annotation without losing the discussion.
       await page
@@ -522,6 +582,14 @@ test(
       assert.equal(
         requests.filter((r) => r.path.includes("/assignees?")).length,
         1,
+      );
+      await page
+        .getByRole("button", { name: "Back to comments", exact: true })
+        .click();
+      await page.locator("#threads .thread").first().click();
+      assert.equal(
+        await page.locator("#reply-body").inputValue(),
+        "<img src=x onerror=alert(1)> @bob A plain-text reply.",
       );
       await page
         .getByRole("button", { name: "Post reply", exact: true })
@@ -671,6 +739,38 @@ test(
       await originalPage.close();
       await page.screenshot({ path: join(temp, "workspace.png") });
       await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole("separator").waitFor();
+      await page.waitForFunction(
+        () =>
+          document
+            .getElementById("panel-divider")
+            .getAttribute("aria-orientation") === "horizontal",
+      );
+      const stacked = await page.evaluate(() => ({
+        artifact: document
+          .getElementById("artifact")
+          .getBoundingClientRect()
+          .toJSON(),
+        panel: document
+          .getElementById("comments-drawer")
+          .getBoundingClientRect()
+          .toJSON(),
+      }));
+      assert.ok(stacked.artifact.bottom <= stacked.panel.top);
+      assert.ok(stacked.artifact.height >= 180 && stacked.panel.height >= 180);
+      assert.equal(
+        await page.getByRole("separator").getAttribute("aria-orientation"),
+        "horizontal",
+      );
+      const oldHeight = stacked.panel.height;
+      await page.getByRole("separator").focus();
+      await page.getByRole("separator").press("ArrowUp");
+      assert.equal(
+        await page
+          .locator("#comments-drawer")
+          .evaluate((el) => el.getBoundingClientRect().height),
+        oldHeight + 20,
+      );
       assert.ok(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
