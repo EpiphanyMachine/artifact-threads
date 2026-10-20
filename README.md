@@ -21,7 +21,13 @@ No database, application server, analytics, or third-party preview service. The 
 
 ## Install and try it
 
-1. Clone this repo into `~/code/artifact-threads`, or extract the extension ZIP.
+1. Clone the `main` branch into a permanent folder such as `~/code/artifact-threads`:
+
+   ```sh
+   git clone --branch main https://github.com/EpiphanyMachine/artifact-threads.git ~/code/artifact-threads
+   ```
+
+   Beta testers install directly from this checkout. No Node.js installation, dependency install, or build step is needed to use the extension.
 2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, and choose **Load unpacked** → `extension/`.
 3. [Install Artifact Threads](https://github.com/apps/artifact-threads/installations/new) on the repositories you want to review. An organization owner may need to approve installation. The public client ID is already configured. See [GitHub App setup](docs/github-app-setup.md) for details. The app needs **Issues: read/write**, **Contents: read-only**, and automatic **Metadata: read-only** on selected repositories; it needs no code-write access, notifications permission, client secret, or private key.
 4. Each reviewer clicks **Connect GitHub**, enters the displayed code on GitHub, and approves the connection using their own account. The app must also be installed on the relevant repositories. Organization installation does not replace personal authorization.
@@ -33,7 +39,25 @@ Raw links using `refs/heads/<branch>` or `refs/tags/<tag>` are supported, includ
 
 This build uses the registered [Artifact Threads GitHub App](https://github.com/apps/artifact-threads). Colleagues do not need to register an app or enter a client ID. Advanced settings support a different app for independent deployments; no hosted service is necessary.
 
-After code changes, reload the extension and reopen the Raw link. This update adds Raw-host access and the webNavigation permission; your browser may ask you to approve those permissions. Keep the installation folder in place.
+## Update your beta installation
+
+Finish posting any drafts before updating; unposted drafts are lost when review tabs close. Keep your checkout on `main` and leave its files unmodified, then pull the latest changes:
+
+```sh
+git -C ~/code/artifact-threads pull --ff-only origin main
+```
+
+If Git reports local changes or divergent history, stop and preserve your work before resolving it; do not reset files just to update.
+
+In `chrome://extensions` (or `edge://extensions`), click **Reload** on Artifact Threads. Close existing review tabs and reopen their GitHub Raw links. Pulling alone does not reload the installed extension. Browser-profile settings and the GitHub connection are retained; your browser may request approval if an update changes permissions. Keep the installation folder in place.
+
+When reporting a beta issue, include your browser version, what you expected, reproduction steps using synthetic content, and the output of:
+
+```sh
+git -C ~/code/artifact-threads rev-parse --short HEAD
+```
+
+Do not post access tokens or private document contents. Use [private reporting](SECURITY.md) for security concerns.
 
 ## Review on the artifact
 
