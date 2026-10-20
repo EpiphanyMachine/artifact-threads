@@ -387,10 +387,24 @@ test(
       await options.getByRole("button", { name: "Save settings", exact: true }).click();
       await options.getByText("Settings saved. Reload open artifacts to apply script permissions.", { exact: true }).waitFor();
       await options.close();
+      assert.deepEqual(
+        (await worker.evaluate(() => chrome.storage.local.get("settings"))).settings.scriptRepositories,
+        ["your-org/artifacts"],
+      );
       expectedPolicyBlocks = false;
       await page.reload();
+      await frame.locator("#artifact-threads-overlay").waitFor();
       await frame.getByRole("button", { name: "Count: 0" }).click();
-      await frame.getByRole("button", { name: "Count: 1" }).waitFor();
+      await frame.getByRole("button", { name: "Count: 1" }).waitFor().catch(async (error) => {
+        throw new Error(error.message + JSON.stringify({
+          policyErrors,
+          commentMode: await page.locator("#comment-mode").getAttribute("aria-pressed"),
+          frame: await frame.locator("body").evaluate(() => ({
+            handler: typeof document.getElementById("counter").onclick,
+            policy: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content,
+          })),
+        }));
+      });
       assert.equal(
         await frame
           .locator("#chart")
