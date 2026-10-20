@@ -7,7 +7,23 @@ import {
 } from "./core.js";
 import { GitHub } from "./github.js";
 import { GITHUB_APP_CLIENT_ID } from "./app-config.js";
-const defaults = { clientId: GITHUB_APP_CLIENT_ID, repositories: [] };
+const defaults = {
+  clientId: GITHUB_APP_CLIENT_ID,
+  repositories: [],
+  scriptRepositories: [],
+};
+let authGeneration = 0;
+let authQueue = Promise.resolve();
+let refreshing = null;
+function authState(action) {
+  const result = authQueue.then(action);
+  authQueue = result.catch(() => {});
+  return result;
+}
+function currentAuth(generation) {
+  if (generation !== authGeneration)
+    throw new Error("GitHub connection changed. Connect again if needed.");
+}
 const trusted = () =>
   chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
 chrome.runtime.onInstalled.addListener(trusted);
@@ -32,28 +48,42 @@ async function oauth(path, body) {
   return response.json();
 }
 async function auth() {
-  const stored = (await chrome.storage.local.get("auth")).auth;
+  const snapshot = await authState(async () => ({
+    stored: (await chrome.storage.local.get("auth")).auth,
+    cfg: await config(),
+    generation: authGeneration,
+  }));
+  const { stored, cfg, generation } = snapshot;
+  currentAuth(generation);
   if (!stored?.access_token)
-    throw new Error(
-      "Connect GitHub in Settings to load artifacts and comments.",
-    );
-  if (stored.expires_at && stored.expires_at < Date.now() + 60000) {
-    if (!stored.refresh_token)
-      throw new Error("Your GitHub connection expired. Reconnect in Settings.");
-    const cfg = await config();
+    throw new Error("Connect GitHub in Settings to load artifacts and comments.");
+  if (!stored.expires_at || stored.expires_at >= Date.now() + 60000)
+    return stored.access_token;
+  if (!stored.refresh_token)
+    throw new Error("Your GitHub connection expired. Reconnect in Settings.");
+  if (refreshing?.generation === generation) return refreshing.promise;
+  const promise = (async () => {
     const result = await oauth("/login/oauth/access_token", {
       client_id: cfg.clientId,
       grant_type: "refresh_token",
       refresh_token: stored.refresh_token,
     });
-    if (!result.access_token) {
-      await chrome.storage.local.remove("auth");
-      throw new Error("Your connection expired. Reconnect GitHub.");
-    }
-    await saveAuth(result);
-    return result.access_token;
+    return authState(async () => {
+      currentAuth(generation);
+      if (!result.access_token) {
+        await chrome.storage.local.remove(["auth", "user"]);
+        throw new Error("Your connection expired. Reconnect GitHub.");
+      }
+      await saveAuth(result);
+      return result.access_token;
+    });
+  })();
+  refreshing = { generation, promise };
+  try {
+    return await promise;
+  } finally {
+    if (refreshing?.promise === promise) refreshing = null;
   }
-  return stored.access_token;
 }
 async function saveAuth(result) {
   await trusted();
@@ -106,19 +136,32 @@ async function handle(message) {
   }
   if (message.type === "settings.save") {
     const cfg = settings(message.settings);
-    const old = await config();
-    if (cfg.clientId !== old.clientId)
-      await chrome.storage.local.remove(["auth", "user"]);
-    await chrome.storage.local.set({ settings: cfg });
-    return cfg;
+    return authState(async () => {
+      const old = await config();
+      if (cfg.clientId !== old.clientId) {
+        authGeneration++;
+        await chrome.storage.local.remove(["auth", "user"]);
+        await chrome.storage.session.remove("pending");
+      }
+      await chrome.storage.local.set({ settings: cfg });
+      return cfg;
+    });
   }
   if (message.type === "auth.disconnect") {
-    await chrome.storage.local.remove(["auth", "user"]);
-    await chrome.storage.session.remove("pending");
-    return true;
+    return authState(async () => {
+      authGeneration++;
+      await chrome.storage.local.remove(["auth", "user"]);
+      await chrome.storage.session.remove("pending");
+      return true;
+    });
   }
   if (message.type === "auth.start") {
-    const cfg = await config();
+    const { cfg, generation } = await authState(async () => {
+      authGeneration++;
+      await chrome.storage.local.remove(["auth", "user"]);
+      await chrome.storage.session.remove("pending");
+      return { cfg: await config(), generation: authGeneration };
+    });
     if (!cfg.clientId)
       throw new Error(
         "The app owner must configure a GitHub App client ID first. See README → GitHub App setup.",
@@ -130,13 +173,16 @@ async function handle(message) {
       throw new Error(
         "GitHub rejected this app configuration. Enable device flow and check the client ID.",
       );
-    await chrome.storage.session.set({
-      pending: {
-        device_code: result.device_code,
-        expires: Date.now() + result.expires_in * 1000,
-        interval: result.interval || 5,
-        next: Date.now() + (result.interval || 5) * 1000,
-      },
+    await authState(async () => {
+      currentAuth(generation);
+      await chrome.storage.session.set({
+        pending: {
+          device_code: result.device_code,
+          expires: Date.now() + result.expires_in * 1000,
+          interval: result.interval || 5,
+          next: Date.now() + (result.interval || 5) * 1000,
+        },
+      });
     });
     return {
       code: result.user_code,
@@ -145,14 +191,17 @@ async function handle(message) {
     };
   }
   if (message.type === "auth.poll") {
-    const pending = (await chrome.storage.session.get("pending")).pending;
+    const { pending, cfg, generation } = await authState(async () => ({
+      pending: (await chrome.storage.session.get("pending")).pending,
+      cfg: await config(),
+      generation: authGeneration,
+    }));
     if (!pending || Date.now() > pending.expires)
       throw new Error(
         "Authorization expired. Click Connect GitHub to try again.",
       );
     if (Date.now() < pending.next)
       return { pending: true, interval: pending.interval };
-    const cfg = await config();
     const result = await oauth("/login/oauth/access_token", {
       client_id: cfg.clientId,
       device_code: pending.device_code,
@@ -164,25 +213,41 @@ async function handle(message) {
     ) {
       if (result.error === "slow_down") pending.interval += 5;
       pending.next = Date.now() + pending.interval * 1000;
-      await chrome.storage.session.set({ pending });
+      await authState(async () => {
+        currentAuth(generation);
+        await chrome.storage.session.set({ pending });
+      });
       return { pending: true, interval: pending.interval };
     }
     if (!result.access_token) {
-      await chrome.storage.session.remove("pending");
+      await authState(async () => {
+        currentAuth(generation);
+        await chrome.storage.session.remove("pending");
+      });
       throw new Error(
         "GitHub authorization was denied or expired. You can connect again.",
       );
     }
-    await saveAuth(result);
+    currentAuth(generation);
     const user = await new GitHub(result.access_token).request("/user");
     const profile = { login: user.login, name: user.name || user.login };
-    await chrome.storage.local.set({ user: profile });
-    await chrome.storage.session.remove("pending");
+    await authState(async () => {
+      currentAuth(generation);
+      await saveAuth(result);
+      await chrome.storage.local.set({ user: profile });
+      await chrome.storage.session.remove("pending");
+    });
     return { user: profile };
   }
   const api = new GitHub(await auth());
-  if (message.type === "artifact.open")
-    return api.artifact(message.url, (await config()).repositories);
+  if (message.type === "artifact.open") {
+    const cfg = await config();
+    const artifact = await api.artifact(message.url, cfg.repositories);
+    return {
+      ...artifact,
+      scriptsEnabled: cfg.scriptRepositories.includes(artifact.source.repository),
+    };
+  }
   if (message.type === "mentions.list")
     return api.mentionUsers(await allowedSource(message.source));
   if (message.type === "threads.list")

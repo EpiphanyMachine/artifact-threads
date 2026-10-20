@@ -239,3 +239,10 @@ test("automatic review only handles allowlisted Raw HTML and strips secrets", ()
     ),
   );
 });
+
+test("script trust defaults off, is per repository, and cannot escape the allowlist", () => {
+  assert.deepEqual(settings({ repositories: ["org/docs"] }).scriptRepositories, []);
+  assert.deepEqual(settings({ repositories: ["org/docs", "org/other"], scriptRepositories: ["ORG/DOCS"] }).scriptRepositories, ["org/docs"]);
+  for (const scriptRepositories of [["other/repo"], "org/docs", [null], ["*/*"]])
+    assert.throws(() => settings({ repositories: ["org/docs"], scriptRepositories }));
+});

@@ -102,6 +102,11 @@
           One owner/repository per line. This allowlist is independent of the
           app installation.
         </p>
+        <fieldset aria-describedby="script-warning">
+          <legend>Artifact scripts</legend>
+          <p id="script-warning" class="small">Scripts are off by default. Annotations still work. Only enable scripts for repositories you trust; this applies to every file and revision in that repository. Downloads remain blocked, including clicked exports. Save and reload open artifacts to apply changes.</p>
+          <div id="script-options"></div>
+        </fieldset>
         <div class="actions">
           <button type="submit">Save settings</button
           ><button type="button" id="connect">Connect GitHub</button
@@ -151,7 +156,7 @@
           id="artifact"
           src="sandbox.html"
           title="Isolated artifact"
-          sandbox="allow-scripts allow-downloads"
+          sandbox="allow-scripts"
           hidden
         ></iframe>
       </section>
@@ -223,6 +228,7 @@
             ></textarea>
           </label>
           <div class="actions">
+            <p class="small">Posting saves the selected text and up to 80 surrounding characters on each side in this repository’s GitHub issue.</p>
             <button id="post" type="button">Post thread</button
             ><button id="cancel" type="button">Cancel</button>
           </div>

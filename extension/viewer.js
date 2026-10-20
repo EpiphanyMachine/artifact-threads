@@ -105,10 +105,28 @@ $("drawer-close").onclick = () => {
   showDrawer(false);
   $("threads-toggle").focus();
 };
+function selectedScriptRepositories() {
+  return [...$("script-options").querySelectorAll("input:checked")].map((input) => input.value);
+}
+function renderScriptOptions(trusted) {
+  const names = [...new Set($("repositories").value.split("\n").map((name) => name.trim().toLowerCase()).filter(Boolean))];
+  $("script-options").replaceChildren();
+  for (const name of names) {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = name;
+    checkbox.checked = trusted.includes(name);
+    label.append(checkbox, document.createTextNode(" Allow scripts in " + name));
+    $("script-options").append(label);
+  }
+}
+$("repositories").addEventListener("input", () => renderScriptOptions(selectedScriptRepositories()));
 async function loadSettings() {
   const state = await rpc("settings.get");
   $("client-id").value = state.settings.clientId;
   $("repositories").value = state.settings.repositories.join("\n");
+  renderScriptOptions(state.settings.scriptRepositories || []);
   $("connection").textContent = state.connected
     ? "Connected as " + (state.user?.login || "GitHub user")
     : "Not connected";
@@ -125,6 +143,7 @@ function renderArtifact() {
       schema: "artifact-threads/bootstrap",
       channel,
       html: artifact.html,
+      scriptsEnabled: artifact.scriptsEnabled === true,
     },
     "*",
   );
@@ -376,11 +395,12 @@ $("settings-form").onsubmit = async (event) => {
       settings: {
         clientId: $("client-id").value,
         repositories: $("repositories").value.split("\n"),
+        scriptRepositories: selectedScriptRepositories(),
       },
     });
     mentionCache.clear();
     await loadSettings();
-    notice("Settings saved. Only configured repositories can be reviewed.");
+    notice("Settings saved. Reload open artifacts to apply script permissions.");
   } catch (error) {
     notice(error.message, true);
   }
@@ -393,6 +413,7 @@ $("connect").onclick = async () => {
       settings: {
         clientId: $("client-id").value,
         repositories: $("repositories").value.split("\n"),
+        scriptRepositories: selectedScriptRepositories(),
       },
     });
     const device = await rpc("auth.start");
@@ -436,6 +457,9 @@ $("connect").onclick = async () => {
 };
 $("disconnect").onclick = async () => {
   clearTimeout(poll);
+  authenticating = false;
+  $("connect").disabled = false;
+  $("device").hidden = true;
   mentionCache.clear();
   await rpc("auth.disconnect");
   await loadSettings();

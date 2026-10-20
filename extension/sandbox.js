@@ -1,6 +1,6 @@
 // Parse artifact markup only in the sandbox. DOMParser inherits its caller's
 // CSP, including when parsing into a detached document.
-function cleanHTML(html) {
+function cleanHTML(html, nonce) {
   const parsed = new DOMParser().parseFromString(html, "text/html");
   parsed.querySelectorAll("base,meta[http-equiv]").forEach((el) => {
     if (
@@ -9,6 +9,12 @@ function cleanHTML(html) {
     )
       el.remove();
   });
+  if (nonce) {
+    const policy = parsed.createElement("meta");
+    policy.httpEquiv = "Content-Security-Policy";
+    policy.content = "script-src 'nonce-" + nonce + "'";
+    parsed.head.prepend(policy);
+  }
   return "<!doctype html>\n" + parsed.documentElement.outerHTML;
 }
 function annotate(channel) {
@@ -470,11 +476,12 @@ addEventListener("message", (event) => {
     return;
   const script =
     "(" + annotate.toString() + ")(" + JSON.stringify(data.channel) + ");";
-  const html = cleanHTML(data.html);
+  const nonce = crypto.randomUUID().replaceAll("-", "");
+  const html = cleanHTML(data.html, data.scriptsEnabled === true ? null : nonce);
   document.open();
   document.write(
     html +
-      "<script>" +
+      '<script nonce="' + nonce + '">' +
       script.replace(/<\/script/gi, "<\\/script") +
       "<\/script>",
   );
