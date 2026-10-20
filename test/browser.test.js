@@ -392,6 +392,7 @@ test(
         ["your-org/artifacts"],
       );
       expectedPolicyBlocks = false;
+      await page.bringToFront();
       await page.reload();
       await frame.locator("#artifact-threads-overlay").waitFor();
       await frame.getByRole("button", { name: "Count: 0" }).click();
@@ -401,6 +402,8 @@ test(
           commentMode: await page.locator("#comment-mode").getAttribute("aria-pressed"),
           frame: await frame.locator("body").evaluate(() => ({
             handler: typeof document.getElementById("counter").onclick,
+            label: document.getElementById("counter").textContent,
+            focused: document.hasFocus(),
             policy: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content,
           })),
         }));
