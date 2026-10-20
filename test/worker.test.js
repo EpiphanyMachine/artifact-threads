@@ -108,3 +108,10 @@ test("a late failure cannot clear a newer connection", async () => {
   await rejected;
   assert.equal(h.local.auth.access_token, "synthetic-other-session");
 });
+
+test("starting a new connection prevents use of the previous account", async () => {
+  const h = harness(async () => response({ device_code: "synthetic-device", expires_in: 600, interval: 5 }));
+  await h.run('handle({type:"auth.start"})');
+  assert.equal(h.local.auth, undefined);
+  await assert.rejects(h.run("auth()"), /Connect GitHub/);
+});

@@ -158,6 +158,7 @@ async function handle(message) {
   if (message.type === "auth.start") {
     const { cfg, generation } = await authState(async () => {
       authGeneration++;
+      await chrome.storage.local.remove(["auth", "user"]);
       await chrome.storage.session.remove("pending");
       return { cfg: await config(), generation: authGeneration };
     });
